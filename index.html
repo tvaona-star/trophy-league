@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trophy League — World Cup Draft Position Tracker 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f0f0f; --card:#161616; --border:#282828;
+  --grass:#1a5c2e; --grass-light:#237a3d;
+  --gold:#e8b018; --gold-light:#f5c842;
+  --red:#c0392b; --white:#f4f2ed; --muted:#777777;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--white);font-family:'Barlow',sans-serif;min-height:100vh}
+h1,h2,h3,.display{font-family:'Bebas Neue',sans-serif;letter-spacing:1px}
+
+/* ---------- Header ---------- */
+header{
+  background:linear-gradient(135deg,#0d3a1c 0%,#1a5c2e 55%,#0d2f18 100%);
+  position:relative;border-bottom:3px solid var(--gold);
+  padding:22px 28px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;
+}
+header::before{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.18;
+  background:
+    repeating-linear-gradient(0deg,transparent,transparent 23px,rgba(244,242,237,.35) 23px,rgba(244,242,237,.35) 24px),
+    repeating-linear-gradient(90deg,transparent,transparent 23px,rgba(244,242,237,.35) 23px,rgba(244,242,237,.35) 24px);
+}
+header .left,header .right{position:relative;z-index:1}
+header h1{font-size:44px;line-height:1;color:var(--white)}
+header h1 span{color:var(--gold-light)}
+header .subtitle{font-family:'Barlow Condensed',sans-serif;font-size:17px;color:#cfe8d6;margin-top:4px}
+header .right{text-align:right;font-family:'Barlow Condensed',sans-serif}
+header .right .meta1{font-size:18px;font-weight:600;color:var(--gold-light)}
+header .right .meta2{font-size:15px;color:#cfe8d6;margin-top:2px}
+.sync-badge{
+  display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:12.5px;font-weight:700;
+  letter-spacing:1px;border-radius:10px;padding:2px 10px;margin-top:6px;
+}
+.sync-badge.live{background:rgba(35,122,61,.3);color:#5fd687;border:1px solid var(--grass-light)}
+.sync-badge.local{background:rgba(119,119,119,.15);color:var(--muted);border:1px solid var(--border)}
+.sync-badge.offline{background:rgba(192,57,43,.18);color:#ff8d80;border:1px solid var(--red)}
+.auth-btn{
+  background:none;border:none;color:#cfe8d6;font-family:'Barlow Condensed',sans-serif;
+  font-size:13px;cursor:pointer;margin-top:5px;padding:0;text-decoration:underline;opacity:.85;
+}
+.auth-btn:hover{color:var(--gold-light)}
+.lock-bar{
+  background:#141414;border-bottom:1px solid var(--border);color:var(--muted);
+  font-family:'Barlow Condensed',sans-serif;font-size:14.5px;text-align:center;padding:7px 12px;
+}
+/* Read-only mode: hide or freeze every mutating control */
+body.readonly #spinBtn,
+body.readonly .wheel-controls .btn-ghost,
+body.readonly .tracker-controls,
+body.readonly .chip .x{display:none}
+body.readonly .slot input,
+body.readonly .team-slot select,
+body.readonly .goals-input{pointer-events:none;opacity:.55}
+
+/* ---------- Tabs ---------- */
+nav{display:flex;border-bottom:1px solid var(--border);background:var(--card);overflow-x:auto}
+nav button{
+  font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.5px;
+  background:none;border:none;color:var(--muted);padding:14px 26px;cursor:pointer;
+  border-bottom:3px solid transparent;white-space:nowrap;
+}
+nav button:hover{color:var(--white)}
+nav button.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+main{max-width:1100px;margin:0 auto;padding:24px 16px 60px}
+section{display:none}
+section.active{display:block}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:20px}
+.section-title{font-size:28px;color:var(--gold);margin-bottom:6px}
+.section-sub{color:var(--muted);font-size:14px;margin-bottom:16px}
+
+/* ---------- Buttons ---------- */
+.btn{
+  font-family:'Bebas Neue',sans-serif;font-size:19px;letter-spacing:1.5px;
+  border:none;border-radius:6px;padding:11px 30px;cursor:pointer;transition:transform .08s,filter .15s;
+}
+.btn:active{transform:scale(.97)}
+.btn-gold{background:var(--gold);color:#1a1a1a}
+.btn-gold:hover{filter:brightness(1.12)}
+.btn-green{background:var(--grass-light);color:var(--white)}
+.btn-green:hover{filter:brightness(1.15)}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--red);border-color:var(--red)}
+.btn:disabled{opacity:.4;cursor:not-allowed;filter:none}
+
+/* ---------- Spinner ---------- */
+.spin-layout{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+.wheel-wrap{position:relative;width:min(440px,92vw);margin:0 auto}
+.pointer{
+  position:absolute;top:-4px;left:50%;transform:translateX(-50%);z-index:5;
+  width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;
+  border-top:30px solid var(--gold);filter:drop-shadow(0 2px 3px rgba(0,0,0,.6));
+}
+.wheel-controls{text-align:center;margin-top:18px;display:flex;gap:12px;justify-content:center}
+#announce{
+  text-align:center;font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:600;
+  color:var(--gold-light);margin-top:14px;min-height:32px;
+}
+.results-panel{flex:1;min-width:280px}
+.results-panel h3{font-size:22px;color:var(--white);margin-bottom:10px}
+.result-row{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);
+  font-family:'Barlow Condensed',sans-serif;font-size:17px;
+}
+.result-row .picknum{
+  font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);width:42px;flex-shrink:0;
+}
+
+/* ---------- Tags ---------- */
+.tag{font-family:'Barlow Condensed',sans-serif;font-size:12.5px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.tag-comm{background:rgba(35,122,61,.25);color:#5fd687;border:1px solid var(--grass-light)}
+.tag-champ{background:rgba(232,176,24,.18);color:var(--gold-light);border:1px solid var(--gold)}
+.tag-sacko{background:rgba(192,57,43,.18);color:#ff8d80;border:1px solid var(--red)}
+.tag-new{background:rgba(52,120,200,.2);color:#7db8f0;border:1px solid #3478c8}
+
+/* ---------- Draft Board ---------- */
+.board-table{width:100%;border-collapse:collapse}
+.board-table th{
+  font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;color:var(--muted);
+  text-align:left;padding:8px 10px;border-bottom:2px solid var(--border);
+}
+.board-table td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.board-table tr.awaiting td{opacity:.45}
+.mgr-cell{display:flex;align-items:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:600}
+.pos-cell{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);width:36px}
+.global-picks{color:var(--muted);font-size:13px;font-family:'Barlow Condensed',sans-serif}
+.slot{position:relative;min-width:165px}
+.slot input{
+  width:100%;background:#0f0f0f;border:1px solid var(--border);border-radius:6px;color:var(--white);
+  padding:8px 10px;font-family:'Barlow',sans-serif;font-size:14.5px;
+}
+.slot input:focus{outline:none;border-color:var(--grass-light)}
+.chip{
+  display:flex;align-items:center;gap:7px;background:#0f2c18;border:1px solid var(--grass);
+  border-radius:6px;padding:7px 10px;font-size:14.5px;
+}
+.chip .x{margin-left:auto;cursor:pointer;color:var(--muted);font-size:15px;padding:0 3px;line-height:1}
+.chip .x:hover{color:var(--red)}
+.dropdown{
+  position:absolute;top:calc(100% + 3px);left:0;right:0;z-index:20;max-height:230px;overflow-y:auto;
+  background:#1c1c1c;border:1px solid var(--border);border-radius:6px;box-shadow:0 8px 20px rgba(0,0,0,.6);
+}
+.dd-item{padding:8px 11px;cursor:pointer;font-size:14.5px;display:flex;gap:8px;align-items:center}
+.dd-item:hover{background:var(--grass)}
+.dd-item.taken{color:#555;cursor:not-allowed}
+.dd-item.taken:hover{background:none}
+.dd-empty{padding:9px 11px;color:var(--muted);font-size:13.5px}
+.dd-group{color:var(--muted);font-size:12px}
+
+/* ---------- Tracker ---------- */
+.tracker-table{width:100%;border-collapse:collapse}
+.tracker-table th{
+  font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:1px;color:var(--muted);
+  text-align:left;padding:8px 9px;border-bottom:2px solid var(--border);white-space:nowrap;
+}
+.tracker-table td{padding:9px;border-bottom:1px solid var(--border);vertical-align:middle}
+.rank-cell{font-family:'Bebas Neue',sans-serif;font-size:21px;width:54px}
+.avg-cell{font-family:'Bebas Neue',sans-serif;font-size:21px;white-space:nowrap}
+.fpick-cell{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--white)}
+tr.rank-gold .rank-cell,tr.rank-gold .avg-cell{color:var(--gold-light)}
+tr.rank-gold{background:rgba(232,176,24,.07)}
+tr.rank-silver .rank-cell,tr.rank-silver .avg-cell{color:#c8c8c8}
+tr.rank-silver{background:rgba(200,200,200,.05)}
+tr.rank-bronze .rank-cell,tr.rank-bronze .avg-cell{color:#cd7f32}
+tr.rank-bronze{background:rgba(205,127,50,.05)}
+tr.rank-last .rank-cell,tr.rank-last .avg-cell{color:#ff8d80}
+tr.rank-last{background:rgba(192,57,43,.08)}
+.team-slot{font-size:14px;white-space:nowrap}
+.team-slot .country{display:block;margin-bottom:4px}
+.team-slot select{
+  background:#0f0f0f;color:var(--white);border:1px solid var(--border);border-radius:5px;
+  padding:5px 6px;font-size:13px;font-family:'Barlow',sans-serif;max-width:150px;
+}
+.team-slot select:focus{outline:none;border-color:var(--grass-light)}
+.team-slot select.scored{border-color:var(--grass-light);color:#9fe0b3}
+.goals-input{
+  width:58px;background:#0f0f0f;border:1px solid var(--border);border-radius:5px;color:var(--white);
+  padding:5px 6px;font-size:13.5px;text-align:center;
+}
+.partial-badge{
+  font-family:'Barlow Condensed',sans-serif;font-size:11.5px;color:var(--gold);border:1px solid var(--gold);
+  border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle;
+}
+.pending-divider td{
+  font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--muted);
+  background:#121212;padding:6px 10px;
+}
+.tracker-controls{display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.table-scroll{overflow-x:auto}
+.muted-note{color:var(--muted);font-size:13px;margin-top:10px}
+
+/* ---------- Flags ---------- */
+.flag{height:17px;width:auto;border-radius:2px;vertical-align:-3px;box-shadow:0 0 0 1px rgba(255,255,255,.12);flex-shrink:0}
+.team-slot .flag{height:15px}
+
+/* ---------- On the clock ---------- */
+.on-clock{
+  display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,#0d3a1c,#161616 70%);
+  border:1px solid var(--grass);border-left:5px solid var(--gold);border-radius:8px;
+  padding:12px 16px;margin-bottom:16px;
+}
+.on-clock .oc-label{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;color:var(--gold)}
+.on-clock .oc-detail{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:600}
+.on-clock .oc-sub{color:var(--muted);font-size:13.5px;margin-left:auto;font-family:'Barlow Condensed',sans-serif}
+.on-clock.done{border-left-color:var(--grass-light)}
+
+/* ---------- Nation pool ---------- */
+.pool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.pool-group{background:#101010;border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.pool-group h4{font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;color:var(--gold);margin-bottom:7px}
+.pool-row{display:flex;align-items:center;gap:7px;padding:3.5px 0;font-size:13.5px}
+.pool-row.taken{opacity:.45}
+.pool-row.taken .pname{text-decoration:line-through}
+.pool-row .owner{margin-left:auto;font-size:11.5px;color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-weight:600}
+
+/* ---------- Podium ---------- */
+.podium{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.podium-card{
+  border-radius:10px;padding:14px 16px;border:1px solid var(--border);background:#101010;
+  position:relative;overflow:hidden;
+}
+.podium-card .p-medal{font-size:24px}
+.podium-card .p-name{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1px;margin-top:2px}
+.podium-card .p-avg{font-family:'Bebas Neue',sans-serif;font-size:34px;line-height:1;margin-top:4px}
+.podium-card .p-sub{color:var(--muted);font-size:12.5px;font-family:'Barlow Condensed',sans-serif;margin-top:3px}
+.podium-card.p1{border-color:var(--gold);background:linear-gradient(135deg,rgba(232,176,24,.16),#101010 65%)}
+.podium-card.p1 .p-avg{color:var(--gold-light)}
+.podium-card.p2{border-color:#9c9c9c;background:linear-gradient(135deg,rgba(200,200,200,.12),#101010 65%)}
+.podium-card.p2 .p-avg{color:#c8c8c8}
+.podium-card.p3{border-color:#cd7f32;background:linear-gradient(135deg,rgba(205,127,50,.13),#101010 65%)}
+.podium-card.p3 .p-avg{color:#cd7f32}
+.podium-card .p-accent{position:absolute;top:0;left:0;bottom:0;width:5px}
+
+/* ---------- Score chips & movement ---------- */
+.team-slot select.s-good{border-color:var(--gold);color:var(--gold-light)}
+.team-slot select.s-mid{border-color:var(--grass-light);color:#9fe0b3}
+.team-slot select.s-bad{border-color:var(--red);color:#ff9d92}
+.mv{font-size:13px;font-weight:700;margin-left:5px;font-family:'Barlow',sans-serif}
+.mv.up{color:#5fd687}
+.mv.down{color:#ff8d80}
+.mv.same{color:var(--muted)}
+
+/* ---------- Rules ---------- */
+.rules-body p{margin-bottom:12px;line-height:1.55;font-size:15px}
+.rules-body strong{color:var(--gold-light)}
+.rules-table{border-collapse:collapse;margin:4px 0 14px;min-width:280px}
+.rules-table td{border:1px solid var(--border);padding:6px 14px;font-size:14px}
+.rules-table td:last-child{font-family:'Bebas Neue',sans-serif;font-size:17px;color:var(--gold);text-align:center}
+
+@media (max-width:640px){
+  .podium{grid-template-columns:1fr}
+
+  header h1{font-size:32px}
+  header .right{text-align:left}
+  .btn{font-size:17px;padding:10px 22px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="left">
+    <h1>TROPHY <span>LEAGUE</span></h1>
+    <div class="subtitle">⚽ World Cup Draft Position Tracker · 2026</div>
+  </div>
+  <div class="right">
+    <div class="meta1">10 Managers · 3 Teams Each</div>
+    <div class="meta2">June 11 – July 19, 2026</div>
+    <div id="syncBadge" class="sync-badge local">● LOCAL ONLY</div>
+    <div><button id="authBtn" class="auth-btn" onclick="toggleAuth()" style="display:none">🔑 Commissioner Sign-In</button></div>
+  </div>
+</header>
+<div id="lockBar" style="display:none" class="lock-bar">🔒 View-only — live standings update automatically. Only the commissioner can make changes.</div>
+
+<nav>
+  <button class="active" data-tab="spinner" onclick="switchTab('spinner')">Draft Order Spinner</button>
+  <button data-tab="board" onclick="switchTab('board')">Draft Board</button>
+  <button data-tab="tracker" onclick="switchTab('tracker')">Live Tracker</button>
+  <button data-tab="rules" onclick="switchTab('rules')">Rules</button>
+</nav>
+
+<main>
+
+<!-- ============ MODULE 1: SPINNER ============ -->
+<section id="spinner" class="active">
+  <div class="card">
+    <h2 class="section-title">Draft Order Spinner</h2>
+    <p class="section-sub">Spin to assign World Cup draft positions. First name drawn gets Pick #10 — last name standing gets Pick #1.</p>
+    <div class="spin-layout">
+      <div>
+        <div class="wheel-wrap">
+          <div class="pointer"></div>
+          <svg id="wheelSvg" viewBox="0 0 440 440" width="100%"></svg>
+        </div>
+        <div class="wheel-controls">
+          <button id="spinBtn" class="btn btn-gold" onclick="spin()">SPIN</button>
+          <button class="btn btn-ghost" onclick="resetSpins()">Reset Spins</button>
+        </div>
+        <div id="announce"></div>
+      </div>
+      <div class="results-panel card" style="margin-bottom:0">
+        <h3 class="display">DRAFT ORDER RESULTS</h3>
+        <div id="resultsList"><div class="dd-empty">No spins yet — hit SPIN to start.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MODULE 2: DRAFT BOARD ============ -->
+<section id="board">
+  <div class="card">
+    <h2 class="section-title">Draft Board</h2>
+    <p class="section-sub">3-round snake draft · Round 1: picks 1→10 · Round 2: 10→1 · Round 3: 1→10. Order comes from the Spinner.</p>
+    <div id="onClock"></div>
+    <div class="table-scroll">
+      <table class="board-table">
+        <thead>
+          <tr><th>#</th><th>Manager</th><th>Round 1</th><th>Round 2</th><th>Round 3</th><th>Pick #s</th></tr>
+        </thead>
+        <tbody id="boardBody"></tbody>
+      </table>
+    </div>
+    <p class="muted-note">Countries already taken appear greyed out and unclickable in every other dropdown. Picks sync automatically to the Live Tracker.</p>
+  </div>
+  <div class="card">
+    <h3 class="display" style="font-size:22px;color:var(--white);margin-bottom:4px">NATION POOL</h3>
+    <p class="section-sub">All 48 nations by group — taken countries are crossed out with their manager.</p>
+    <div id="poolGrid" class="pool-grid"></div>
+  </div>
+</section>
+
+<!-- ============ MODULE 3: LIVE TRACKER ============ -->
+<section id="tracker">
+  <div class="card">
+    <h2 class="section-title">Live Standings Tracker</h2>
+    <p class="section-sub">Lower average = better fantasy pick. Champion = 1 · Group stage exit = 8.</p>
+    <div id="podium"></div>
+    <div class="tracker-controls">
+      <button class="btn btn-green" onclick="renderTracker(true)" title="Re-sorts standings and sets the baseline for ▲▼ movement arrows">Recalculate</button>
+      <button class="btn btn-ghost" onclick="resetAll()">Reset All Data</button>
+    </div>
+    <div class="table-scroll">
+      <table class="tracker-table">
+        <thead>
+          <tr><th>Rank</th><th>Manager</th><th>Team 1</th><th>Team 2</th><th>Team 3</th><th>⚽ Goals (TB)</th><th>Average</th><th>Fantasy Pick</th></tr>
+        </thead>
+        <tbody id="trackerBody"></tbody>
+      </table>
+    </div>
+    <p class="muted-note">
+      Tiebreakers, in order: ① best single team finish ② most combined goals (enter in the Goals column) ③ later pick in the World Cup snake draft.
+      Partial averages are shown as soon as any score is set and marked <span class="partial-badge">PARTIAL</span> until all 3 teams are scored.
+    </p>
+  </div>
+</section>
+
+<!-- ============ RULES ============ -->
+<section id="rules">
+  <div class="card rules-card">
+    <h2 class="section-title">World Cup 2026 — Tournament Format</h2>
+    <div class="rules-body">
+      <p><strong>48 teams</strong> compete across the United States, Canada, and Mexico from <strong>June 11 to July 19, 2026</strong> — the biggest World Cup ever.</p>
+      <p><strong>Group stage (June 11–27):</strong> 12 groups (A–L) of 4 teams. Each team plays 3 group matches. The <strong>top 2 in each group</strong> plus the <strong>8 best third-place teams</strong> advance — 32 teams move on.</p>
+      <p><strong>Knockout rounds:</strong> Round of 32 → Round of 16 → Quarterfinals → Semifinals. Single elimination, extra time and penalties if needed.</p>
+      <p><strong>Third-place match (July 18):</strong> The two semifinal losers play one final match to decide 3rd and 4th place.</p>
+      <p><strong>Final (July 19):</strong> MetLife Stadium, New Jersey. Winner lifts the trophy.</p>
+    </div>
+  </div>
+  <div class="card rules-card">
+    <h2 class="section-title">Trophy League — How the Draft Game Works</h2>
+    <div class="rules-body">
+      <p><strong>Step 1 — The Spin (before June 11):</strong> The wheel decides World Cup draft order. The first name drawn gets WC Pick #10 (last to choose), counting down — the final name left gets Pick #1. Don't blame the wheel, blame your luck.</p>
+      <p><strong>Step 2 — The Nation Draft:</strong> 3-round snake draft. Round 1 goes picks 1→10, Round 2 reverses 10→1, Round 3 goes 1→10. Every manager ends up with 3 of the 48 nations. Once a nation is taken, it's gone.</p>
+      <p><strong>Step 3 — The Tournament:</strong> Your 3 nations earn a placement score based on how far they go. <strong>Lower is better:</strong></p>
+      <table class="rules-table">
+        <tr><td>Champion</td><td>1</td></tr>
+        <tr><td>Runner-up</td><td>2</td></tr>
+        <tr><td>3rd place</td><td>3</td></tr>
+        <tr><td>4th place</td><td>4</td></tr>
+        <tr><td>Out in Quarterfinals</td><td>5</td></tr>
+        <tr><td>Out in Round of 16</td><td>6</td></tr>
+        <tr><td>Out in Round of 32</td><td>7</td></tr>
+        <tr><td>Group stage exit</td><td>8</td></tr>
+      </table>
+      <p><strong>Final score:</strong> the average of your 3 teams' placement scores. Lowest average earns <strong>fantasy Pick #1</strong>; highest average gets stuck with Pick #10.</p>
+      <p><strong>Tiebreakers, in order:</strong> ① best single team finish among your 3 ② most combined goals scored by your 3 teams across the whole tournament ③ whoever picked later in the World Cup snake draft.</p>
+      <p><strong>Note:</strong> there is no "out in semis" score — both semifinal losers play the 3rd-place match and take scores 3 and 4 from the result.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script>
+/* ================= DATA ================= */
+// wheelColor / wheelText = each manager's colors on the spinner wheel
+const MANAGERS = [
+  {name:'Tyler',   tag:'Commissioner', tagClass:'tag-comm',  wheelColor:'#203731', wheelText:'#FFB612'},
+  {name:'Dami',    tag:'Champ 🏆',     tagClass:'tag-champ', wheelColor:'#0080C6', wheelText:'#FFC20E'},
+  {name:'Matt',    tag:'Sacko 💩',     tagClass:'tag-sacko', wheelColor:'#002A5E', wheelText:'#FFC20E'},
+  {name:'Bob',     tag:null, tagClass:null, wheelColor:'#101820', wheelText:'#D3BC8D'},
+  {name:'Erwin',   tag:null, tagClass:null, wheelColor:'#D50A0A', wheelText:'#FFFFFF'},
+  {name:'David',   tag:null, tagClass:null, wheelColor:'#4F2683', wheelText:'#FFC62F'},
+  {name:'Taylor',  tag:null, tagClass:null, wheelColor:'#0B2265', wheelText:'#FFFFFF'},
+  {name:'Jason',   tag:null, tagClass:null, wheelColor:'#97233F', wheelText:'#FFB612'},
+  {name:'Kyle',    tag:null, tagClass:null, wheelColor:'#008E97', wheelText:'#FC4C02'},
+  {name:'Spencer', tag:'New Guy 🆕',   tagClass:'tag-new',   wheelColor:'#125740', wheelText:'#FFFFFF'},
+];
+const managerByName = name => MANAGERS.find(m=>m.name===name);
+
+// c = ISO code for flagcdn.com images (renders correctly on Windows, unlike flag emoji)
+const COUNTRIES = [
+  {n:'Mexico',c:'mx',g:'A'},{n:'South Africa',c:'za',g:'A'},{n:'South Korea',c:'kr',g:'A'},{n:'Czechia',c:'cz',g:'A'},
+  {n:'Canada',c:'ca',g:'B'},{n:'Bosnia-Herzegovina',c:'ba',g:'B'},{n:'Qatar',c:'qa',g:'B'},{n:'Switzerland',c:'ch',g:'B'},
+  {n:'Brazil',c:'br',g:'C'},{n:'Morocco',c:'ma',g:'C'},{n:'Haiti',c:'ht',g:'C'},{n:'Scotland',c:'gb-sct',g:'C'},
+  {n:'United States',c:'us',g:'D'},{n:'Paraguay',c:'py',g:'D'},{n:'Australia',c:'au',g:'D'},{n:'Turkiye',c:'tr',g:'D'},
+  {n:'Germany',c:'de',g:'E'},{n:'Curacao',c:'cw',g:'E'},{n:'Ivory Coast',c:'ci',g:'E'},{n:'Ecuador',c:'ec',g:'E'},
+  {n:'Netherlands',c:'nl',g:'F'},{n:'Japan',c:'jp',g:'F'},{n:'Sweden',c:'se',g:'F'},{n:'Tunisia',c:'tn',g:'F'},
+  {n:'Belgium',c:'be',g:'G'},{n:'Egypt',c:'eg',g:'G'},{n:'Iran',c:'ir',g:'G'},{n:'New Zealand',c:'nz',g:'G'},
+  {n:'Spain',c:'es',g:'H'},{n:'Cape Verde',c:'cv',g:'H'},{n:'Saudi Arabia',c:'sa',g:'H'},{n:'Uruguay',c:'uy',g:'H'},
+  {n:'France',c:'fr',g:'I'},{n:'Senegal',c:'sn',g:'I'},{n:'Iraq',c:'iq',g:'I'},{n:'Norway',c:'no',g:'I'},
+  {n:'Argentina',c:'ar',g:'J'},{n:'Algeria',c:'dz',g:'J'},{n:'Austria',c:'at',g:'J'},{n:'Jordan',c:'jo',g:'J'},
+  {n:'Portugal',c:'pt',g:'K'},{n:'DR Congo',c:'cd',g:'K'},{n:'Uzbekistan',c:'uz',g:'K'},{n:'Colombia',c:'co',g:'K'},
+  {n:'England',c:'gb-eng',g:'L'},{n:'Croatia',c:'hr',g:'L'},{n:'Ghana',c:'gh',g:'L'},{n:'Panama',c:'pa',g:'L'},
+];
+const countryOf = name => COUNTRIES.find(c=>c.n===name);
+const flagImg = name => {
+  const c = countryOf(name);
+  return c ? `<img class="flag" src="https://flagcdn.com/h24/${c.c}.png" srcset="https://flagcdn.com/h48/${c.c}.png 2x" alt="" loading="lazy">` : '';
+};
+
+const SCORE_LABELS = {
+  1:'Champion 🏆', 2:'Runner-up', 3:'3rd place', 4:'4th place',
+  5:'Out in Quarters', 6:'Out in Round of 16', 7:'Out in Round of 32', 8:'Group stage exit'
+};
+
+/* ================= FIREBASE CONFIG ================= */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDUKtgoM7zZyDsW88poFv69aHOrsn09X7s",
+  authDomain: "trophy-league.firebaseapp.com",
+  databaseURL: "https://trophy-league-default-rtdb.firebaseio.com",
+  projectId: "trophy-league",
+  storageBucket: "trophy-league.firebasestorage.app",
+  messagingSenderId: "70069441550",
+  appId: "1:70069441550:web:d841c0d370ca41bb88d85f"
+};
+const FIREBASE_ENABLED = FIREBASE_CONFIG.apiKey !== "PASTE_ME" && typeof firebase !== 'undefined';
+
+/* Commissioner's Firebase Auth UID — only this account gets edit controls.
+   The database rules enforce the same UID server-side. */
+const COMMISSIONER_UID = "BbSuhbRaEnZTXk4iJBlRpwTOj913";
+
+/* ================= STATE ================= */
+const STORAGE_KEY = 'trophyLeague2026';
+let state = {
+  // spinner: results[i] = {pick, name}; first drawn gets pick 10
+  results: [],
+  remaining: MANAGERS.map(m=>m.name),
+  // picks[managerName] = [country|null, country|null, country|null]
+  picks: Object.fromEntries(MANAGERS.map(m=>[m.name,[null,null,null]])),
+  // scores[managerName] = [0..8, 0..8, 0..8]  (0 = pending)
+  scores: Object.fromEntries(MANAGERS.map(m=>[m.name,[0,0,0]])),
+  // goals[managerName] = combined tournament goals (tiebreaker 2)
+  goals: Object.fromEntries(MANAGERS.map(m=>[m.name,null])),
+  // lastRanks = rank snapshot taken on Recalculate, drives ▲▼ movement arrows
+  lastRanks: null,
+};
+
+function save(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+  pushRemote();
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    const s = JSON.parse(raw);
+    if(s && Array.isArray(s.results) && Array.isArray(s.remaining) && s.picks && s.scores){
+      state = s;
+      if(!state.goals) state.goals = Object.fromEntries(MANAGERS.map(m=>[m.name,null]));
+      if(state.lastRanks === undefined) state.lastRanks = null;
+    }
+  }catch(e){}
+}
+
+function resetAll(){
+  if(!canEdit()) return;
+  if(!confirm('Reset ALL data — spins, draft picks, and scores?')) return;
+  localStorage.removeItem(STORAGE_KEY);
+  state = {
+    results: [], remaining: MANAGERS.map(m=>m.name),
+    picks: Object.fromEntries(MANAGERS.map(m=>[m.name,[null,null,null]])),
+    scores: Object.fromEntries(MANAGERS.map(m=>[m.name,[0,0,0]])),
+    goals: Object.fromEntries(MANAGERS.map(m=>[m.name,null])),
+    lastRanks: null,
+  };
+  document.getElementById('announce').textContent='';
+  save();
+  renderAll();
+}
+
+/* ================= TABS ================= */
+function switchTab(id){
+  document.querySelectorAll('section').forEach(s=>s.classList.toggle('active', s.id===id));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.tab===id));
+  // Board re-reads spinner state whenever visited (PRD §11.2)
+  if(id==='board') renderBoard();
+  if(id==='tracker') renderTracker();
+}
+
+/* ================= MODULE 1: SPINNER ================= */
+const CX=220, CY=220, R=208;
+let currentRotation = 0;   // degrees, applied to wheel group
+let spinning = false;
+
+function polar(angleDeg, r){
+  // angle measured clockwise from 12 o'clock
+  const a = angleDeg * Math.PI/180;
+  return [CX + r*Math.sin(a), CY - r*Math.cos(a)];
+}
+
+function renderWheel(){
+  const svg = document.getElementById('wheelSvg');
+  const names = state.remaining;
+  const n = names.length;
+  let inner = '<circle cx="220" cy="220" r="212" fill="#0f0f0f" stroke="#e8b018" stroke-width="4"/>';
+  inner += '<g id="wheelGroup">';
+  if(n===0){
+    inner += '<text x="220" y="228" text-anchor="middle" fill="#777" font-size="22" font-family="Bebas Neue">ALL PICKS ASSIGNED</text>';
+  } else if(n===1){
+    const m = managerByName(names[0]);
+    inner += `<circle cx="220" cy="220" r="${R}" fill="${m.wheelColor}"/>`;
+    inner += `<text x="220" y="230" text-anchor="middle" fill="${m.wheelText}" font-size="30" font-family="Bebas Neue" letter-spacing="2">${names[0].toUpperCase()}</text>`;
+  } else {
+    const seg = 360/n;
+    for(let i=0;i<n;i++){
+      const m = managerByName(names[i]);
+      const a0 = i*seg, a1 = (i+1)*seg;
+      const [x0,y0] = polar(a0,R), [x1,y1] = polar(a1,R);
+      const large = seg>180 ? 1 : 0;
+      inner += `<path d="M ${CX} ${CY} L ${x0.toFixed(2)} ${y0.toFixed(2)} A ${R} ${R} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z" fill="${m.wheelColor}" stroke="#0f0f0f" stroke-width="2"/>`;
+      // label along the radial centerline of the segment
+      const mid = a0 + seg/2;
+      const [tx,ty] = polar(mid, R*0.62);
+      const rot = mid; // rotate text to align with radius
+      inner += `<text x="${tx.toFixed(2)}" y="${ty.toFixed(2)}" text-anchor="middle" dominant-baseline="middle" fill="${m.wheelText}" font-size="${n>6?17:21}" font-weight="600" font-family="Barlow Condensed" transform="rotate(${rot.toFixed(2)} ${tx.toFixed(2)} ${ty.toFixed(2)})">${names[i].toUpperCase()}</text>`;
+    }
+  }
+  inner += '</g>';
+  inner += '<circle cx="220" cy="220" r="26" fill="#161616" stroke="#e8b018" stroke-width="3"/>';
+  inner += '<text x="220" y="227" text-anchor="middle" fill="#e8b018" font-size="15" font-family="Bebas Neue">WC</text>';
+  svg.innerHTML = inner;
+  currentRotation = 0;
+  document.getElementById('spinBtn').disabled = (n===0);
+}
+
+function easeOutQuart(t){ return 1 - Math.pow(1-t,4); }
+
+function spin(){
+  if(spinning || !canEdit()) return;
+  const names = state.remaining;
+  if(names.length===0) return;
+  spinning = true;
+  document.getElementById('spinBtn').disabled = true;
+  document.getElementById('announce').textContent = '';
+
+  /* CRITICAL (PRD §11.1): winner is determined BEFORE animation.
+     The wheel is then animated to a mathematically exact angle that
+     places the winner's segment under the pointer. No post-animation
+     angle detection. */
+  const winnerIdx = Math.floor(Math.random()*names.length);
+  const winner = names[winnerIdx];
+  const n = names.length;
+  const seg = 360/n;
+  // Winner segment center sits at angle (winnerIdx+0.5)*seg clockwise from top.
+  // After rotating the wheel clockwise by Rmod, that center is at center+Rmod.
+  // We need (center + Rmod) ≡ 0 (mod 360)  →  Rmod = 360 - center.
+  const center = (winnerIdx + 0.5) * seg;
+  const jitter = (Math.random()*0.6 - 0.3) * seg;   // stay well inside the segment
+  const targetMod = ((360 - center - jitter) % 360 + 360) % 360;
+  const fullSpins = 5 + Math.floor(Math.random()*3); // 5–7 full rotations
+  const target = fullSpins*360 + targetMod;
+
+  const group = document.getElementById('wheelGroup');
+  const duration = 4300;
+  const startRot = currentRotation;
+  const delta = target - startRot;
+  const t0 = performance.now();
+
+  function frame(now){
+    const t = Math.min((now - t0)/duration, 1);
+    const rot = startRot + delta * easeOutQuart(t);
+    group.setAttribute('transform', `rotate(${rot} ${CX} ${CY})`);
+    if(t < 1){ requestAnimationFrame(frame); }
+    else {
+      currentRotation = target;
+      recordSpinResult(winner);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function recordSpinResult(winner){
+  const pick = 10 - state.results.length; // counts down 10 → 1
+  state.results.push({pick, name:winner});
+  state.remaining = state.remaining.filter(x=>x!==winner);
+  save();
+  document.getElementById('announce').textContent = `🎉 ${winner} → WC Pick #${pick}`;
+  renderResults();
+  // brief pause so the league sees the wheel resting on the winner
+  setTimeout(()=>{
+    renderWheel();
+    spinning = false;
+    if(state.remaining.length===0){
+      document.getElementById('announce').textContent += ' — Draft order complete! Head to the Draft Board.';
+    }
+  }, 1300);
+}
+
+function renderResults(){
+  const el = document.getElementById('resultsList');
+  if(state.results.length===0){
+    el.innerHTML = '<div class="dd-empty">No spins yet — hit SPIN to start.</div>';
+    return;
+  }
+  // Listed in draw order: #10 first, #1 last (PRD §6)
+  el.innerHTML = state.results.map(r=>{
+    const m = MANAGERS.find(m=>m.name===r.name);
+    return `<div class="result-row"><span class="picknum">#${r.pick}</span><strong>${r.name}</strong>${tagHtml(m)}</div>`;
+  }).join('');
+}
+
+function resetSpins(){
+  if(!canEdit()) return;
+  if(state.results.length && !confirm('Reset all spins and re-draw the draft order?')) return;
+  state.results = [];
+  state.remaining = MANAGERS.map(m=>m.name);
+  document.getElementById('announce').textContent='';
+  save();
+  renderWheel();
+  renderResults();
+}
+
+function tagHtml(m){
+  return m.tag ? `<span class="tag ${m.tagClass}">${m.tag}</span>` : '';
+}
+
+/* ================= MODULE 2: DRAFT BOARD ================= */
+function draftOrder(){
+  // Returns [{m, pos}] sorted: assigned picks 1→10 first, then awaiting-spin managers
+  const assigned = [...state.results].sort((a,b)=>a.pick-b.pick)
+    .map(r=>({ m: MANAGERS.find(x=>x.name===r.name), pos: r.pick }));
+  const drawnNames = new Set(state.results.map(r=>r.name));
+  const awaiting = MANAGERS.filter(m=>!drawnNames.has(m.name)).map(m=>({m, pos:null}));
+  return [...assigned, ...awaiting];
+}
+
+function globalPicks(pos){ return [pos, 21-pos, 20+pos]; } // snake: 1→10, 10→1, 1→10
+
+function takenCountries(){
+  const set = new Set();
+  for(const name in state.picks) state.picks[name].forEach(c=>{ if(c) set.add(c); });
+  return set;
+}
+
+function pickSequence(){
+  // Global pick order once spins are complete: [{m, round, global}]
+  if(state.results.length < 10) return null;
+  const byPos = [...state.results].sort((a,b)=>a.pick-b.pick).map(r=>MANAGERS.find(x=>x.name===r.name));
+  const seq = [];
+  let g = 1;
+  [byPos, [...byPos].reverse(), byPos].forEach((roundOrder, round)=>{
+    roundOrder.forEach(m=>seq.push({m, round, global:g++}));
+  });
+  return seq;
+}
+
+function renderOnClock(){
+  const el = document.getElementById('onClock');
+  const seq = pickSequence();
+  if(!seq){
+    el.innerHTML = `<div class="on-clock"><span class="oc-label">⏰ ON THE CLOCK</span><span class="oc-detail" style="color:var(--muted)">Complete the spinner to start the draft</span></div>`;
+    return;
+  }
+  const next = seq.find(p=>!state.picks[p.m.name][p.round]);
+  if(!next){
+    el.innerHTML = `<div class="on-clock done"><span class="oc-label" style="color:#5fd687">✅ DRAFT COMPLETE</span><span class="oc-detail">All 30 nations selected — head to the Live Tracker</span></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="on-clock">
+    <span class="oc-label">⏰ ON THE CLOCK</span>
+    <span class="oc-detail" style="color:${next.m.wheelText}">${next.m.name}</span>
+    <span class="oc-detail">Pick #${next.global} · Round ${next.round+1}</span>
+    <span class="oc-sub">${30-seq.filter(p=>state.picks[p.m.name][p.round]).length} picks remaining</span>
+  </div>`;
+}
+
+function renderPool(){
+  const el = document.getElementById('poolGrid');
+  // map country -> owner
+  const owner = {};
+  for(const name in state.picks) state.picks[name].forEach(c=>{ if(c) owner[c]=name; });
+  const groups = [...new Set(COUNTRIES.map(c=>c.g))];
+  el.innerHTML = groups.map(g=>{
+    const rows = COUNTRIES.filter(c=>c.g===g).map(c=>{
+      const o = owner[c.n];
+      return `<div class="pool-row${o?' taken':''}">${flagImg(c.n)}<span class="pname">${c.n}</span>${o?`<span class="owner">${o}</span>`:''}</div>`;
+    }).join('');
+    return `<div class="pool-group"><h4>GROUP ${g}</h4>${rows}</div>`;
+  }).join('');
+}
+
+function renderBoard(){
+  renderOnClock();
+  renderPool();
+  const body = document.getElementById('boardBody');
+  const rows = draftOrder();
+  body.innerHTML = rows.map(({m,pos})=>{
+    const gp = pos ? globalPicks(pos) : null;
+    const slots = [0,1,2].map(r=>{
+      const c = state.picks[m.name][r];
+      if(c){
+        return `<td class="slot"><div class="chip" style="border-left:4px solid ${m.wheelColor}">${flagImg(c)}<span>${c}</span><span class="x" onclick="clearPick('${m.name}',${r})" title="Remove pick">✕</span></div></td>`;
+      }
+      return `<td class="slot"><input type="text" placeholder="${pos?'Type a country…':'Awaiting spin'}" ${pos?'':'disabled'} data-mgr="${m.name}" data-round="${r}" oninput="ddFilter(this)" onfocus="ddFilter(this)" autocomplete="off"></td>`;
+    }).join('');
+    return `<tr${pos?'':' class="awaiting"'}>
+      <td class="pos-cell">${pos?pos:'—'}</td>
+      <td><div class="mgr-cell">${m.name} ${tagHtml(m)}</div></td>
+      ${slots}
+      <td class="global-picks">${gp?gp.map(p=>'#'+p).join(' · '):'awaiting spin'}</td>
+    </tr>`;
+  }).join('');
+}
+
+let openDD = null;
+function closeDD(){ if(openDD){ openDD.remove(); openDD=null; } }
+document.addEventListener('click', e=>{
+  if(openDD && !e.target.closest('.slot')) closeDD();
+});
+
+function ddFilter(input){
+  closeDD();
+  const q = input.value.trim().toLowerCase();
+  const taken = takenCountries();
+  const matches = COUNTRIES.filter(c=>c.n.toLowerCase().includes(q));
+  const dd = document.createElement('div');
+  dd.className = 'dropdown';
+  if(matches.length===0){
+    dd.innerHTML = '<div class="dd-empty">No countries match.</div>';
+  } else {
+    dd.innerHTML = matches.map(c=>{
+      const isTaken = taken.has(c.n);
+      return `<div class="dd-item${isTaken?' taken':''}" ${isTaken?'':`onclick="selectCountry('${input.dataset.mgr}',${input.dataset.round},'${c.n.replace(/'/g,"\\'")}')"`}>
+        ${flagImg(c.n)}<span>${c.n}<span class="dd-group"> · Group ${c.g}</span>${isTaken?' <em>(taken)</em>':''}</span></div>`;
+    }).join('');
+  }
+  input.parentElement.appendChild(dd);
+  openDD = dd;
+}
+
+function selectCountry(mgr, round, country){
+  if(!canEdit()) return;
+  // Guard: never allow double-selection even via race (PRD §11.3)
+  if(takenCountries().has(country)) return;
+  state.picks[mgr][round] = country;
+  save();
+  closeDD();
+  renderBoard();   // re-renders all dropdowns → taken state applied globally
+}
+
+function clearPick(mgr, round){
+  if(!canEdit()) return;
+  state.picks[mgr][round] = null;
+  save();
+  renderBoard();
+}
+
+/* ================= MODULE 3: LIVE TRACKER ================= */
+function ordinal(i){ return i + (['st','nd','rd'][((i+90)%100-10)%10-1] || 'th'); }
+
+function managerCalc(name){
+  const sc = state.scores[name].filter(s=>s>0);
+  const count = sc.length;
+  const avg = count ? sc.reduce((a,b)=>a+b,0)/count : null;
+  const best = count ? Math.min(...sc) : null;
+  return {count, avg, best};
+}
+
+function spinnerPos(name){
+  const r = state.results.find(r=>r.name===name);
+  return r ? r.pick : 99;
+}
+
+function renderTracker(setBaseline=false){
+  const body = document.getElementById('trackerBody');
+  const order = draftOrder(); // board order for stable display of pending managers
+
+  const scored = [], pending = [];
+  for(const {m} of order){
+    const calc = managerCalc(m.name);
+    (calc.count>0 ? scored : pending).push({m, ...calc});
+  }
+
+  // Sort: avg asc → best single finish asc → goals desc → later WC pick (higher pos) wins
+  scored.sort((a,b)=>{
+    if(a.avg !== b.avg) return a.avg - b.avg;
+    if(a.best !== b.best) return a.best - b.best;
+    const ga = state.goals[a.m.name] ?? -1, gb = state.goals[b.m.name] ?? -1;
+    if(ga !== gb) return gb - ga;
+    return spinnerPos(b.m.name) - spinnerPos(a.m.name);
+  });
+
+  // Podium banner (top 3 ranked managers)
+  const podium = document.getElementById('podium');
+  if(scored.length >= 1){
+    const medals = ['🥇','🥈','🥉'];
+    podium.innerHTML = '<div class="podium">' + scored.slice(0,3).map((row,i)=>`
+      <div class="podium-card p${i+1}">
+        <div class="p-accent" style="background:${row.m.wheelColor}"></div>
+        <span class="p-medal">${medals[i]}</span>
+        <div class="p-name">${row.m.name}</div>
+        <div class="p-avg">${row.avg.toFixed(2)}</div>
+        <div class="p-sub">${row.count<3?`partial · ${row.count}/3 scored`:'final average'} → Fantasy Pick #${i+1}</div>
+      </div>`).join('') + '</div>';
+  } else {
+    podium.innerHTML = '';
+  }
+
+  let html = scored.map((row,i)=>{
+    const rank = i+1;
+    let cls = '';
+    if(rank===1) cls='rank-gold';
+    else if(rank===2) cls='rank-silver';
+    else if(rank===3) cls='rank-bronze';
+    if(rank===10) cls='rank-last';
+    const partial = row.count<3;
+    const avgTxt = row.avg.toFixed(2) + (partial?`<span class="partial-badge">PARTIAL ${row.count}/3</span>`:'');
+    // movement vs last Recalculate baseline
+    const prev = state.lastRanks ? state.lastRanks[row.m.name] : undefined;
+    let mv = '';
+    if(prev !== undefined){
+      if(prev > rank) mv = `<span class="mv up">▲${prev-rank}</span>`;
+      else if(prev < rank) mv = `<span class="mv down">▼${rank-prev}</span>`;
+      else mv = `<span class="mv same">—</span>`;
+    }
+    return trackerRow(row.m, ordinal(rank)+mv, avgTxt, '#'+rank, cls);
+  }).join('');
+
+  if(pending.length){
+    html += `<tr class="pending-divider"><td colspan="8">PENDING — NO SCORES ENTERED</td></tr>`;
+    html += pending.map(row=>trackerRow(row.m,'—','—','—','')).join('');
+  }
+  body.innerHTML = html;
+
+  if(setBaseline){
+    state.lastRanks = Object.fromEntries(scored.map((row,i)=>[row.m.name, i+1]));
+    save();
+  }
+}
+
+function scoreClass(s){
+  if(s>=1 && s<=4) return 's-good';
+  if(s===5 || s===6) return 's-mid';
+  if(s>=7) return 's-bad';
+  return '';
+}
+
+function trackerRow(m, rankTxt, avgTxt, pickTxt, cls){
+  const slots = [0,1,2].map(r=>{
+    const c = state.picks[m.name][r];
+    const s = state.scores[m.name][r];
+    const opts = ['<option value="0">— Pending</option>']
+      .concat(Object.entries(SCORE_LABELS).map(([v,l])=>`<option value="${v}"${s==v?' selected':''}>${v} · ${l}</option>`))
+      .join('');
+    return `<td class="team-slot">
+      <span class="country">${c ? flagImg(c)+' '+c : '<span style="color:#555">— not drafted</span>'}</span>
+      <select class="${scoreClass(s)}" onchange="setScore('${m.name}',${r},this.value)" ${c?'':'disabled'}>${opts}</select>
+    </td>`;
+  }).join('');
+  const g = state.goals[m.name];
+  return `<tr class="${cls}">
+    <td class="rank-cell" style="border-left:5px solid ${m.wheelColor}">${rankTxt}</td>
+    <td><div class="mgr-cell">${m.name} ${tagHtml(m)}</div></td>
+    ${slots}
+    <td><input class="goals-input" type="number" min="0" value="${g??''}" placeholder="—" onchange="setGoals('${m.name}',this.value)"></td>
+    <td class="avg-cell">${avgTxt}</td>
+    <td class="fpick-cell">${pickTxt}</td>
+  </tr>`;
+}
+
+function setScore(mgr, round, val){
+  if(!canEdit()) return;
+  state.scores[mgr][round] = parseInt(val,10) || 0;
+  save();
+  renderTracker();
+}
+
+function setGoals(mgr, val){
+  if(!canEdit()) return;
+  state.goals[mgr] = val==='' ? null : Math.max(0, parseInt(val,10)||0);
+  save();
+  renderTracker();
+}
+
+/* ================= LIVE SYNC (Firebase Realtime Database) ================= */
+/* State is stored as a single JSON string under /league2026/data so that
+   nulls and sparse arrays survive round-trips (RTDB strips null values). */
+let dbRef = null;
+let lastPushed = '';        // JSON we last wrote — used to ignore our own echo
+let remoteReady = false;    // first snapshot received
+
+function setBadge(mode, text){
+  const b = document.getElementById('syncBadge');
+  b.className = 'sync-badge ' + mode;
+  b.textContent = text;
+}
+
+function pushRemote(){
+  if(!dbRef || !canEdit()) return;
+  const json = JSON.stringify(state);
+  lastPushed = json;
+  dbRef.set({ data: json, updated: firebase.database.ServerValue.TIMESTAMP })
+    .catch(()=>setBadge('offline','● SYNC ERROR'));
+}
+
+function validState(s){
+  return s && Array.isArray(s.results) && Array.isArray(s.remaining) && s.picks && s.scores;
+}
+
+function applyRemote(val){
+  if(!val || !val.data){
+    // Database is empty (first run) — seed it with whatever we have locally
+    remoteReady = true;
+    pushRemote();
+    return;
+  }
+  if(val.data === lastPushed){ remoteReady = true; return; } // our own write echoed back
+  try{
+    const s = JSON.parse(val.data);
+    if(!validState(s)) return;
+    if(!s.goals) s.goals = Object.fromEntries(MANAGERS.map(m=>[m.name,null]));
+    if(s.lastRanks === undefined) s.lastRanks = null;
+    // normalize pick/score arrays (JSON round-trips keep nulls, but be safe)
+    MANAGERS.forEach(m=>{
+      if(!Array.isArray(s.picks[m.name])) s.picks[m.name] = [null,null,null];
+      while(s.picks[m.name].length<3) s.picks[m.name].push(null);
+      if(!Array.isArray(s.scores[m.name])) s.scores[m.name] = [0,0,0];
+      while(s.scores[m.name].length<3) s.scores[m.name].push(0);
+    });
+    state = s;
+    remoteReady = true;
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+    if(!spinning) renderAll();   // don't yank the wheel mid-spin; render after
+  }catch(e){}
+}
+
+/* ---------- Auth: commissioner-only editing ---------- */
+let currentUser = null;
+
+function canEdit(){
+  if(!FIREBASE_ENABLED) return true;             // local mode: full control
+  if(!currentUser) return false;                 // hosted + signed out: read-only
+  return currentUser.uid === COMMISSIONER_UID;
+}
+
+function applyEditMode(){
+  const ro = !canEdit();
+  document.body.classList.toggle('readonly', ro);
+  document.getElementById('lockBar').style.display = (FIREBASE_ENABLED && ro) ? '' : 'none';
+  const btn = document.getElementById('authBtn');
+  if(FIREBASE_ENABLED){
+    btn.style.display = '';
+    btn.textContent = currentUser ? `Sign out (${(currentUser.email||'').split('@')[0]})` : '🔑 Commissioner Sign-In';
+  }
+  renderAll(); // re-render so disabled inputs reflect mode
+}
+
+function toggleAuth(){
+  if(!FIREBASE_ENABLED) return;
+  if(currentUser){ firebase.auth().signOut(); return; }
+  const email = prompt('Commissioner email:');
+  if(!email) return;
+  const pw = prompt('Password:');
+  if(!pw) return;
+  firebase.auth().signInWithEmailAndPassword(email.trim(), pw)
+    .catch(e=>alert('Sign-in failed: '+e.message));
+}
+
+function initSync(){
+  if(!FIREBASE_ENABLED){ setBadge('local','● LOCAL ONLY'); return; }
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    const db = firebase.database();
+    dbRef = db.ref('league2026');
+    dbRef.on('value', snap=>applyRemote(snap.val()));
+    db.ref('.info/connected').on('value', snap=>{
+      if(snap.val()===true) setBadge('live','● LIVE');
+      else if(remoteReady) setBadge('offline','● RECONNECTING…');
+    });
+    firebase.auth().onAuthStateChanged(user=>{
+      currentUser = user;
+      if(user) console.log('Signed in. UID:', user.uid);
+      applyEditMode();
+    });
+    applyEditMode();
+  }catch(e){
+    setBadge('offline','● SYNC ERROR');
+  }
+}
+
+/* ================= INIT ================= */
+function renderAll(){ renderWheel(); renderResults(); renderBoard(); renderTracker(); }
+load();          // local cache renders instantly…
+renderAll();
+initSync();      // …then the live database takes over as source of truth
+</script>
+</body>
+</html>
