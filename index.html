@@ -601,8 +601,16 @@ const SCORE_LABELS = {
    (worst-case-if-it-loses-now, so it only improves as a team advances),
    and total goals scored (tiebreaker). No manual entry. */
 const SPORTSDB = { key:'3', league:'4429', season:'2026' };
-const WC_API = `https://www.thesportsdb.com/api/v1/json/${SPORTSDB.key}/eventsseason.php?id=${SPORTSDB.league}&s=${SPORTSDB.season}`;
 const WC_POLL_MS = 90000; // re-fetch every 90s
+// The free eventsseason endpoint is capped at ~15 events, so we assemble the
+// full schedule from per-round calls (uncapped) plus the league's next/past
+// feeds, and merge everything into a persistent cache keyed by event id — so
+// results never disappear and knockout rounds are picked up automatically.
+const WC_GROUP_ROUNDS = ['1','2','3'];
+const WC_KNOWN_KO = ['125','150','160','200']; // Quarterfinal, Semifinal, 3rd place, Final
+let wcDiscoveredKO = [];                         // Round of 32 / 16 codes learned at runtime
+const WC_CACHE_KEY = 'trophyWcEvents2026';
+let wcEventCache = {};                            // idEvent -> trimmed event
 // TheSportsDB doesn't always send CORS headers to a browser, so we try it
 // directly first and fall back through public CORS proxies. Whichever works
 // is remembered and tried first next time.
@@ -757,21 +765,35 @@ function computeNations(){
   return out;
 }
 
-// Try each endpoint (direct, then proxies) until one returns valid season JSON.
-async function wcFetchJson(){
+// Fetch one TheSportsDB endpoint, trying direct then CORS proxies. Returns an
+// array of events (possibly empty). Remembers whichever proxy worked.
+async function sdbFetch(path){
+  const url = `https://www.thesportsdb.com/api/v1/json/${SPORTSDB.key}/${path}`;
   const order = [wcEndpointIdx, ...WC_ENDPOINTS.map((_,i)=>i).filter(i=>i!==wcEndpointIdx)];
   let lastErr;
   for(const i of order){
     try{
-      const res = await fetch(WC_ENDPOINTS[i](WC_API), {cache:'no-store'});
+      const res = await fetch(WC_ENDPOINTS[i](url), {cache:'no-store'});
       if(!res.ok) throw new Error('HTTP '+res.status);
       const json = await res.json();
-      if(json && (Array.isArray(json.events) || json.events===null)){ wcEndpointIdx = i; return json; }
+      if(json && (Array.isArray(json.events) || json.events===null)){ wcEndpointIdx = i; return json.events || []; }
       throw new Error('unexpected response');
     }catch(e){ lastErr = e; }
   }
   throw lastErr || new Error('all sources failed');
 }
+
+// Keep only the fields the engine needs, to keep the localStorage cache small.
+function trimEvent(e){
+  return { idEvent:e.idEvent, idLeague:e.idLeague, strSeason:e.strSeason,
+    strHomeTeam:e.strHomeTeam, strAwayTeam:e.strAwayTeam,
+    intHomeScore:e.intHomeScore, intAwayScore:e.intAwayScore, intRound:e.intRound,
+    strTimestamp:e.strTimestamp, dateEvent:e.dateEvent, strTime:e.strTime,
+    strStatus:e.strStatus, strVenue:e.strVenue, strGroup:e.strGroup };
+}
+function loadEventCache(){ try{ const r=localStorage.getItem(WC_CACHE_KEY); if(r) wcEventCache=JSON.parse(r)||{}; }catch(e){ wcEventCache={}; } }
+function saveEventCache(){ try{ localStorage.setItem(WC_CACHE_KEY, JSON.stringify(wcEventCache)); }catch(e){} }
+function applyCache(){ wcRaw = Object.values(wcEventCache); wcStageMap = buildStageMap(wcRaw); wcNation = computeNations(); }
 
 async function fetchWC(manual){
   if(wcFetching) return;
@@ -779,15 +801,29 @@ async function fetchWC(manual){
   wcFetching = true;
   setDataBars('loading');
   try{
-    const json = await wcFetchJson();
+    const rounds = [...WC_GROUP_ROUNDS, ...WC_KNOWN_KO, ...wcDiscoveredKO];
+    const tasks = rounds.map(r=>sdbFetch(`eventsround.php?id=${SPORTSDB.league}&r=${r}&s=${SPORTSDB.season}`));
+    tasks.push(sdbFetch(`eventsnextleague.php?id=${SPORTSDB.league}`)); // catches knockout fixtures as they appear
+    tasks.push(sdbFetch(`eventspastleague.php?id=${SPORTSDB.league}`)); // catches recent results
+    const settled = await Promise.allSettled(tasks);
+    const good = settled.filter(s=>s.status==='fulfilled');
+    if(!good.length) throw new Error((settled[0] && settled[0].reason && settled[0].reason.message) || 'all sources failed');
     if(!firstLoad) prevRanks = currentRanking(); // snapshot prior standings for ▲▼ arrows
-    wcRaw = (json && json.events) ? json.events : [];
-    wcStageMap = buildStageMap(wcRaw);
-    wcNation = computeNations();
+    good.forEach(s=>s.value.forEach(e=>{
+      if(!e || !e.idEvent) return;
+      if(e.idLeague && e.idLeague !== SPORTSDB.league) return;
+      if(e.strSeason && e.strSeason !== SPORTSDB.season) return;
+      wcEventCache[e.idEvent] = trimEvent(e);
+    }));
+    // learn any new knockout round codes so their full round is fetched next cycle
+    const known = new Set([...WC_GROUP_ROUNDS, ...WC_KNOWN_KO, ...wcDiscoveredKO]);
+    Object.values(wcEventCache).forEach(e=>{ const r=String(e.intRound); if(r && r!=='null' && r!=='undefined' && !known.has(r)){ wcDiscoveredKO.push(r); known.add(r); } });
+    applyCache();
+    saveEventCache();
     wcLoaded = true; wcError = null; wcUpdatedAt = new Date();
   }catch(err){
     wcError = err.message || 'fetch failed';
-    if(!wcLoaded) wcNation = computeNations(); // empty → pre-tournament view
+    if(!wcLoaded) applyCache(); // show whatever is cached (or empty pre-tournament view)
   }finally{
     wcFetching = false;
     setDataBars();
@@ -1617,6 +1653,7 @@ function initSync(){
 function renderAll(){ renderWheel(); renderResults(); renderBoard(); renderTracker(); }
 load();          // local cache renders instantly…
 try{ myManager = localStorage.getItem(MY_KEY) || null; }catch(e){}
+loadEventCache(); applyCache();   // show last-known World Cup results immediately
 renderAll();
 initSync();      // …then the live database takes over as source of truth for the draft
 
