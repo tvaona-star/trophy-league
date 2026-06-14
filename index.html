@@ -674,8 +674,11 @@ function buildStageMap(events){
 function parseScore(v){ return (v===null||v===undefined||v==='') ? null : parseInt(v,10); }
 function isFinished(e){
   if(FINISHED.has(e.strStatus)) return true;
-  if(LIVE_STATUS.has(e.strStatus) || e.strStatus==='NS') return false;
-  return e.hs!=null && e.as!=null; // fallback: both scores present
+  if(e.strStatus==='NS') return false;        // not started → no result yet
+  // The free feed often freezes games at HT/2H without ever flipping to FT,
+  // but the real score is already present. Count ANY match that has both
+  // scores as a usable result, regardless of status.
+  return e.hs!=null && e.as!=null;
 }
 
 // Normalize raw events into a richer shape used everywhere.
@@ -959,10 +962,10 @@ function matchCard(m){
       ${resolved?flagImg(resolved):''}<span>${resolved||raw||'TBD'}${owner?` <span class="own-tag">${owner}</span>`:''}</span>
       <span class="sc">${sc==null?'':sc}</span></div>`;
   let meta;
-  if(fin){
-    meta = `<div class="mmeta">${STAGE_NAME[m.stage]} · ${m.dateEvent||''}${both&&m.hs===m.as?' · <span class="pens">decided on penalties</span>':''}</div>`;
-  } else if(m.live){
+  if(m.live){
     meta = `<div class="mmeta"><span class="pens">● LIVE</span> · ${m.strVenue||''}</div>`;
+  } else if(fin){
+    meta = `<div class="mmeta">${STAGE_NAME[m.stage]} · ${m.dateEvent||''}${both&&m.hs===m.as?' · <span class="pens">decided on penalties</span>':''}</div>`;
   } else {
     meta = `<div class="mmeta">${m.dateEvent||''}${m.strTime?(' · '+m.strTime.slice(0,5)):''}</div>`;
   }
