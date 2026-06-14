@@ -609,12 +609,17 @@ const WC_POLL_MS = 90000; // re-fetch every 90s
 const WC_GROUP_ROUNDS = ['1','2','3'];
 const WC_KNOWN_KO = ['125','150','160','200']; // Quarterfinal, Semifinal, 3rd place, Final
 let wcDiscoveredKO = [];                         // Round of 32 / 16 codes learned at runtime
-const WC_CACHE_KEY = 'trophyWcEvents2026';
+const WC_CACHE_KEY = 'trophyWcEvents2026_v2'; // bumped to discard any stale cache from earlier versions
 let wcEventCache = {};                            // idEvent -> trimmed event
-// TheSportsDB doesn't always send CORS headers to a browser, so we try it
-// directly first and fall back through public CORS proxies. Whichever works
-// is remembered and tried first next time.
+// TheSportsDB doesn't send CORS headers to a browser, so requests are routed
+// through our own Cloudflare Worker proxy (reliable, adds the CORS header).
+// The public proxies below are kept only as last-ditch fallbacks. Whichever
+// endpoint works is remembered and tried first next time.
+// ── DEPLOY STEP: paste your Worker URL here (no trailing slash). ──
+// e.g. 'https://trophy-wc-proxy.yourname.workers.dev'
+const WC_PROXY = 'https://trophy-wc-proxy.tvaona.workers.dev';
 const WC_ENDPOINTS = [
+  u => `${WC_PROXY}/?url=${encodeURIComponent(u)}`,
   u => u,
   u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
@@ -813,7 +818,19 @@ function mergeOne(e){
   wcEventCache[e.idEvent] = inc;
 }
 
+function kickoffMs(e){ if(!e || !e.strTimestamp) return 0; const d = new Date(e.strTimestamp.replace(' ','T')+'Z'); return isNaN(d) ? 0 : d.getTime(); }
+
+const WC_LOOKUP_CHUNK = 6;            // per-event lookups per concurrent batch (proxy-friendly)
 let wcLastScheduleAt = 0;
+let wcBackfill = {active:false, done:0, total:0};
+
+function renderLiveViews(){
+  setDataBars();
+  renderTracker();
+  if(document.getElementById('myteams').classList.contains('active')) renderMyTeams();
+  if(document.getElementById('worldcup').classList.contains('active')) renderWorldCup();
+}
+
 async function fetchWC(manual){
   if(wcFetching) return;
   const firstLoad = !wcLoaded;
@@ -821,24 +838,40 @@ async function fetchWC(manual){
   setDataBars('loading');
   try{
     const now = Date.now();
-    // The fixtures are static, so refresh them only occasionally; results come
-    // from the rolling league feeds on every cycle (kept light for the proxies).
+    if(!firstLoad) prevRanks = currentRanking(); // snapshot prior standings before this cycle's merges
+    // 1) Fixtures are static — refresh the schedule only occasionally. nextleague
+    //    every cycle for upcoming games + to discover knockout round codes.
     const doSchedule = manual || firstLoad || (now - wcLastScheduleAt > 600000);
     const tasks = [];
     if(doSchedule){
       [...WC_GROUP_ROUNDS, ...WC_KNOWN_KO, ...wcDiscoveredKO].forEach(r=>
         tasks.push(sdbFetch(`eventsround.php?id=${SPORTSDB.league}&r=${r}&s=${SPORTSDB.season}`)));
     }
-    tasks.push(sdbFetch(`eventspastleague.php?id=${SPORTSDB.league}`)); // recent results (scores live here)
-    tasks.push(sdbFetch(`eventsnextleague.php?id=${SPORTSDB.league}`)); // upcoming + knockout-code discovery
+    tasks.push(sdbFetch(`eventsnextleague.php?id=${SPORTSDB.league}`));
     const settled = await Promise.allSettled(tasks);
     const good = settled.filter(s=>s.status==='fulfilled');
-    if(!good.length) throw new Error((settled[0] && settled[0].reason && settled[0].reason.message) || 'all sources failed');
-    if(!firstLoad) prevRanks = currentRanking(); // snapshot prior standings for ▲▼ arrows
     good.forEach(s=>s.value.forEach(mergeOne));
-    // learn any new knockout round codes so their full round is fetched next schedule cycle
     const known = new Set([...WC_GROUP_ROUNDS, ...WC_KNOWN_KO, ...wcDiscoveredKO]);
     Object.values(wcEventCache).forEach(e=>{ const r=String(e.intRound); if(r && r!=='null' && r!=='undefined' && !known.has(r)){ wcDiscoveredKO.push(r); known.add(r); } });
+    // 2) Results — pull EVERY game that has kicked off and isn't final yet, so the
+    //    whole tournament is current and the standings come from complete data.
+    //    The free tier's bulk feeds are stale, so each event is looked up directly.
+    //    Already-final games are cached and skipped, so this is heavy only once.
+    const due = Object.values(wcEventCache)
+      .filter(e=>{ const t = kickoffMs(e); return t && t < now && !FINISHED.has(e.strStatus); })
+      .sort((a,b)=>(b.strTimestamp||'').localeCompare(a.strTimestamp||''));
+    let resultsOk = 0;
+    wcBackfill = {active: due.length>0, done:0, total:due.length};
+    for(let i=0; i<due.length; i+=WC_LOOKUP_CHUNK){
+      const slice = due.slice(i, i+WC_LOOKUP_CHUNK);
+      const looked = await Promise.allSettled(slice.map(e=>sdbFetch(`lookupevent.php?id=${e.idEvent}`)));
+      looked.forEach(s=>{ if(s.status==='fulfilled'){ resultsOk++; s.value.forEach(mergeOne); } });
+      wcBackfill.done = Math.min(i + slice.length, due.length);
+      applyCache();
+      renderLiveViews();   // fill results in progressively as each batch lands
+    }
+    wcBackfill.active = false;
+    if(!good.length && !resultsOk && !wcLoaded) throw new Error('all sources unreachable');
     applyCache();
     saveEventCache();
     if(doSchedule) wcLastScheduleAt = now;
@@ -847,16 +880,15 @@ async function fetchWC(manual){
     wcError = err.message || 'fetch failed';
     if(!wcLoaded) applyCache(); // show whatever is cached (or empty pre-tournament view)
   }finally{
+    wcBackfill.active = false;
     wcFetching = false;
-    setDataBars();
-    renderTracker();
-    if(document.getElementById('myteams').classList.contains('active')) renderMyTeams();
-    if(document.getElementById('worldcup').classList.contains('active')) renderWorldCup();
+    renderLiveViews();
   }
 }
 
 function dataBarHtml(){
   const fmt = wcUpdatedAt ? wcUpdatedAt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
+  if(wcBackfill.active) return {cls:'loading', html:`<span class="dot"></span><span class="upd">Pulling tournament results… ${wcBackfill.done}/${wcBackfill.total}</span>`};
   if(wcFetching && !wcLoaded) return {cls:'loading', html:'<span class="dot"></span><span class="upd">Loading live results…</span>'};
   if(wcError && !wcLoaded)   return {cls:'err', html:`<span class="dot"></span><span class="upd">Couldn't reach live data — retrying. (${wcError})</span>`};
   const played = wcRaw.filter(e=>isFinished({...e, hs:parseScore(e.intHomeScore), as:parseScore(e.intAwayScore)})).length;
