@@ -795,31 +795,53 @@ function loadEventCache(){ try{ const r=localStorage.getItem(WC_CACHE_KEY); if(r
 function saveEventCache(){ try{ localStorage.setItem(WC_CACHE_KEY, JSON.stringify(wcEventCache)); }catch(e){} }
 function applyCache(){ wcRaw = Object.values(wcEventCache); wcStageMap = buildStageMap(wcRaw); wcNation = computeNations(); }
 
+// An event "carries a result" if it has a score or a live/finished status.
+// The fixture endpoints always report NS with null scores, so we must never
+// let one of those overwrite a real result we've already cached.
+function eventHasResult(e){
+  if(!e) return false;
+  if(e.intHomeScore != null && e.intHomeScore !== '') return true;
+  return FINISHED.has(e.strStatus) || LIVE_STATUS.has(e.strStatus);
+}
+function mergeOne(e){
+  if(!e || !e.idEvent) return;
+  if(e.idLeague && e.idLeague !== SPORTSDB.league) return;
+  if(e.strSeason && e.strSeason !== SPORTSDB.season) return;
+  const prev = wcEventCache[e.idEvent];
+  const inc = trimEvent(e);
+  if(prev && eventHasResult(prev) && !eventHasResult(inc)) return; // keep the known result
+  wcEventCache[e.idEvent] = inc;
+}
+
+let wcLastScheduleAt = 0;
 async function fetchWC(manual){
   if(wcFetching) return;
   const firstLoad = !wcLoaded;
   wcFetching = true;
   setDataBars('loading');
   try{
-    const rounds = [...WC_GROUP_ROUNDS, ...WC_KNOWN_KO, ...wcDiscoveredKO];
-    const tasks = rounds.map(r=>sdbFetch(`eventsround.php?id=${SPORTSDB.league}&r=${r}&s=${SPORTSDB.season}`));
-    tasks.push(sdbFetch(`eventsnextleague.php?id=${SPORTSDB.league}`)); // catches knockout fixtures as they appear
-    tasks.push(sdbFetch(`eventspastleague.php?id=${SPORTSDB.league}`)); // catches recent results
+    const now = Date.now();
+    // The fixtures are static, so refresh them only occasionally; results come
+    // from the rolling league feeds on every cycle (kept light for the proxies).
+    const doSchedule = manual || firstLoad || (now - wcLastScheduleAt > 600000);
+    const tasks = [];
+    if(doSchedule){
+      [...WC_GROUP_ROUNDS, ...WC_KNOWN_KO, ...wcDiscoveredKO].forEach(r=>
+        tasks.push(sdbFetch(`eventsround.php?id=${SPORTSDB.league}&r=${r}&s=${SPORTSDB.season}`)));
+    }
+    tasks.push(sdbFetch(`eventspastleague.php?id=${SPORTSDB.league}`)); // recent results (scores live here)
+    tasks.push(sdbFetch(`eventsnextleague.php?id=${SPORTSDB.league}`)); // upcoming + knockout-code discovery
     const settled = await Promise.allSettled(tasks);
     const good = settled.filter(s=>s.status==='fulfilled');
     if(!good.length) throw new Error((settled[0] && settled[0].reason && settled[0].reason.message) || 'all sources failed');
     if(!firstLoad) prevRanks = currentRanking(); // snapshot prior standings for ▲▼ arrows
-    good.forEach(s=>s.value.forEach(e=>{
-      if(!e || !e.idEvent) return;
-      if(e.idLeague && e.idLeague !== SPORTSDB.league) return;
-      if(e.strSeason && e.strSeason !== SPORTSDB.season) return;
-      wcEventCache[e.idEvent] = trimEvent(e);
-    }));
-    // learn any new knockout round codes so their full round is fetched next cycle
+    good.forEach(s=>s.value.forEach(mergeOne));
+    // learn any new knockout round codes so their full round is fetched next schedule cycle
     const known = new Set([...WC_GROUP_ROUNDS, ...WC_KNOWN_KO, ...wcDiscoveredKO]);
     Object.values(wcEventCache).forEach(e=>{ const r=String(e.intRound); if(r && r!=='null' && r!=='undefined' && !known.has(r)){ wcDiscoveredKO.push(r); known.add(r); } });
     applyCache();
     saveEventCache();
+    if(doSchedule) wcLastScheduleAt = now;
     wcLoaded = true; wcError = null; wcUpdatedAt = new Date();
   }catch(err){
     wcError = err.message || 'fetch failed';
