@@ -60,6 +60,7 @@ body.readonly .tracker-controls,
 body.readonly .chip .x{display:none}
 body.readonly .slot input,
 body.readonly .team-slot select,
+body.readonly .tl-row select,
 body.readonly .goals-input{pointer-events:none;opacity:.55}
 
 /* ---------- Tabs ---------- */
@@ -291,6 +292,21 @@ tr.rank-last{background:rgba(192,57,43,.08)}
 .live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#5fd687;
   box-shadow:0 0 6px #5fd687;margin-right:4px;vertical-align:middle;animation:pulse 1.1s infinite}
 .score-num{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--gold);margin-right:6px}
+/* ---------- Elimination feed ---------- */
+.elim-panel{margin-top:18px}
+.elim-title{font-family:'Bebas Neue',sans-serif;letter-spacing:.5px;font-size:20px;color:#ff9d92;margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.elim-count{font-family:'Barlow Condensed',sans-serif;font-size:13px;background:rgba(192,57,43,.16);color:#ff9d92;border:1px solid var(--red);border-radius:10px;padding:1px 8px}
+.elim-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:7px}
+.elim-item{display:flex;align-items:center;gap:8px;background:rgba(192,57,43,.07);border:1px solid rgba(192,57,43,.28);border-radius:8px;padding:6px 9px;font-size:13px}
+.elim-item.elim-owned{background:rgba(232,176,24,.08);border-color:rgba(232,176,24,.35)}
+.elim-flag .flag{width:22px;height:auto;border-radius:2px}
+.elim-name{font-weight:600;display:flex;flex-direction:column;line-height:1.15}
+.elim-name .own-tag{font-weight:500;font-size:10px;color:var(--gold-light)}
+.elim-status{margin-left:auto;font-size:11px}
+.elim-meta{flex-basis:100%;font-size:11px;color:var(--muted);margin-top:2px}
+.elim-item.elim-new{animation:elimflash 2.2s ease-out}
+@keyframes elimflash{0%{background:rgba(255,157,146,.45);box-shadow:0 0 14px rgba(255,157,146,.6)}100%{background:rgba(192,57,43,.07);box-shadow:none}}
+.elim-empty{color:var(--muted);font-size:13px;font-style:italic}
 
 /* ---------- World Cup tab: group tables ---------- */
 .wc-sub-nav{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
@@ -334,6 +350,26 @@ tr.rank-last{background:rgba(192,57,43,.08)}
 .match.owned{border-color:var(--gold);box-shadow:0 0 0 1px rgba(232,176,24,.25)}
 .bracket-empty{color:var(--muted);font-size:14px;font-family:'Barlow Condensed',sans-serif;
   background:#101010;border:1px dashed var(--border);border-radius:8px;padding:18px;text-align:center}
+.bracket-note{color:var(--muted);font-size:12.5px;margin:0 0 12px;line-height:1.45}
+/* ---------- Full knockout bracket ---------- */
+.kb-legend{display:flex;gap:8px;min-width:1080px;margin-bottom:4px}
+.kb-legend span{flex:1;text-align:center;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.kb-legend span:nth-child(5){flex:1.08}
+.kb{display:flex;gap:8px;align-items:stretch;overflow-x:auto;min-width:1080px;padding-bottom:6px}
+.kb-col{display:flex;flex-direction:column;justify-content:space-around;flex:1;min-width:108px}
+.kb-final-col{justify-content:center;align-items:center;flex:1.08}
+.kb-m{display:flex;flex-direction:column;gap:2px;background:#100f0e;border:1px solid var(--border);border-radius:7px;padding:3px;margin:4px 0}
+.kb-m.kb-mlive{border-color:var(--grass-light);box-shadow:0 0 8px rgba(95,214,135,.25)}
+.kb-team{display:flex;align-items:center;gap:5px;font-size:11.5px;padding:3px 5px;border-radius:5px;background:rgba(255,255,255,.02)}
+.kb-team .flag{width:17px;height:auto;border-radius:2px;flex:none}
+.kb-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kb-team.kb-win{background:rgba(35,122,61,.3);color:#9fe0b3;font-weight:600}
+.kb-team.kb-lose{opacity:.4;text-decoration:line-through}
+.kb-team.kb-owned{box-shadow:inset 3px 0 0 var(--gold)}
+.kb-team.kb-tbd{color:#5a5a5a;font-style:italic;justify-content:center}
+.kb-team .own-tag{font-size:9px;color:var(--gold-light)}
+.kb-sc{font-family:'Bebas Neue',sans-serif;color:var(--gold);min-width:12px;text-align:right}
+.kb-trophy{font-size:26px;text-align:center;margin-top:8px}
 
 /* ---------- My Teams ---------- */
 .mt-search{width:100%;max-width:360px;background:#0f0f0f;border:1px solid var(--border);border-radius:8px;
@@ -368,6 +404,23 @@ tr.rank-last{background:rgba(192,57,43,.08)}
 .mt-empty{color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:15px;padding:22px;text-align:center;
   background:#101010;border:1px dashed var(--border);border-radius:8px}
 .mt-section-h{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.5px;color:var(--gold);margin:22px 0 10px}
+
+/* ---------- Tournament / bracket ---------- */
+.tour-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:10px}
+.match{background:#101010;border:1px solid var(--border);border-radius:8px;padding:9px 11px}
+.match .mdate{font-family:'Barlow Condensed',sans-serif;font-size:11.5px;color:var(--muted);letter-spacing:1px;margin-bottom:5px;text-transform:uppercase}
+.match .side{display:flex;align-items:center;gap:7px;padding:3px 0;font-size:14.5px;font-family:'Barlow Condensed',sans-serif;font-weight:600}
+.match .side .flag{height:14px}
+.match .side.out{opacity:.4;text-decoration:line-through}
+.match .side.adv{color:var(--gold-light)}
+.match .vs{font-size:11px;color:var(--muted);margin:1px 0 1px 21px}
+.tour-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:8px}
+.tl-row{display:flex;align-items:center;gap:8px;background:#0f0f0f;border:1px solid var(--border);border-radius:6px;padding:6px 9px;font-size:14px;font-family:'Barlow Condensed',sans-serif;font-weight:600}
+.tl-row .flag{height:15px}
+.tl-row select{margin-left:auto;background:#0f0f0f;color:var(--white);border:1px solid var(--border);border-radius:5px;padding:4px 6px;font-size:12.5px;font-family:'Barlow',sans-serif}
+.tl-row.done{opacity:.7}
+.r16-row{font-family:'Barlow Condensed',sans-serif;font-size:14px;color:#cfe8d6;padding:5px 0;border-bottom:1px solid #1d1d1d}
+.r16-row .fd{color:var(--muted)}
 
 @media (max-width:640px){
   .podium{grid-template-columns:1fr}
@@ -474,6 +527,7 @@ tr.rank-last{background:rgba(192,57,43,.08)}
       <span class="stat-pill stat-alive" style="margin:0 2px"><span class="live-dot"></span>still alive</span> means the score can still improve, so the average is provisional until all 3 teams are finished.
       Tiebreakers: ① best single-team finish ② most combined goals (auto-totaled) ③ later World Cup draft pick.
     </p>
+    <div id="eliminationFeed" class="elim-panel"></div>
     <div class="tracker-controls" style="margin-top:14px">
       <button class="btn btn-ghost" onclick="resetAll()">Reset Draft Data</button>
     </div>
@@ -665,9 +719,12 @@ function buildStageMap(events){
   // The only remaining knockout codes are Round of 32 (16 fixtures) and
   // Round of 16 (8 fixtures) — distinguish them by fixture count.
   const map = Object.assign({}, ROUND_STAGE);
-  const counts = {};
-  events.forEach(e=>{ const r=String(e.intRound); if(!(r in map)) counts[r]=(counts[r]||0)+1; });
-  Object.keys(counts).forEach(r=>{ map[r] = counts[r] >= 12 ? 'R32' : 'R16'; });
+  // Feeds can be truncated, so counting fixtures is unreliable. Order the
+  // unknown knockout codes by earliest kickoff: first played = R32, next = R16.
+  const earliest = {};
+  events.forEach(e=>{ const r=String(e.intRound); if(!(r in map)){ const t=kickoffMs(e)||Infinity; if(earliest[r]===undefined||t<earliest[r]) earliest[r]=t; } });
+  const seq = ['R32','R16'];
+  Object.keys(earliest).sort((a,b)=>earliest[a]-earliest[b]).forEach((r,i)=>{ map[r]=seq[i]||'R16'; });
   return map;
 }
 
@@ -698,9 +755,44 @@ function appearsLater(evs, name, stageRank){
   return evs.some(e=>(e.home===name||e.away===name) && e.stage && STAGE_RANK[e.stage] > stageRank);
 }
 
+// Determine who advances/exits the group stage using the 48-team rule:
+// top 2 of each group + the 8 best 3rd-place teams reach the Round of 32.
+// A group's verdict locks once all its games are finished; the 3rd-place
+// cutoff only locks once ALL groups are done (it's a cross-group ranking).
+function qualification(){
+  const table = computeGroups();
+  const evs = normEvents();
+  const gGames = {};
+  evs.filter(e=>e.stage==='GROUP'&&e.strGroup).forEach(e=>{ (gGames[e.strGroup]=gGames[e.strGroup]||[]).push(e); });
+  const groups = [...new Set(COUNTRIES.map(c=>c.g))];
+  const res = { advanced:new Set(), eliminated:new Set(), elimTs:{} };
+  const thirds = [];
+  let allDone = true;
+  groups.forEach(g=>{
+    const teams = COUNTRIES.filter(c=>c.g===g).map(c=>c.n);
+    const rows = teams.map(n=>({n, ...table[g][n]}))
+      .sort((a,b)=> b.pts-a.pts || ((b.gf-b.ga)-(a.gf-a.ga)) || (b.gf-a.gf) || a.n.localeCompare(b.n));
+    const complete = teams.every(n=>(table[g][n].p||0)>=3);
+    const lastFin = (gGames[g]||[]).filter(e=>e.finished)
+      .sort((a,b)=>(b.strTimestamp||'').localeCompare(a.strTimestamp||''))[0];
+    const ts = lastFin ? lastFin.strTimestamp : '';
+    if(complete){
+      res.advanced.add(rows[0].n); res.advanced.add(rows[1].n);
+      res.eliminated.add(rows[3].n); res.elimTs[rows[3].n]=ts;
+      const t=rows[2]; thirds.push({n:t.n, pts:t.pts, gd:t.gf-t.ga, gf:t.gf, ts});
+    } else { allDone=false; }
+  });
+  if(allDone && thirds.length===groups.length){
+    thirds.sort((a,b)=> b.pts-a.pts || b.gd-a.gd || b.gf-a.gf || a.n.localeCompare(b.n));
+    thirds.forEach((t,i)=>{ if(i<8) res.advanced.add(t.n); else { res.eliminated.add(t.n); res.elimTs[t.n]=t.ts; } });
+  }
+  return res;
+}
+
 function computeNations(){
   const evs = normEvents();
   const r32Loaded = evs.some(e=>e.stage==='R32');
+  const qual = qualification();
   const out = {};
   COUNTRIES.forEach(cc=>{
     const name = cc.n;
@@ -723,13 +815,16 @@ function computeNations(){
 
     if(stage==='GROUP'){
       const played = myAt.filter(e=>e.finished).length;
-      if(played < 3){
+      if(qual.eliminated.has(name)){
+        rec.done=true; rec.statusClass='stat-out'; rec.status='Eliminated · Group Stage'; rec.score=8;
+      } else if(qual.advanced.has(name)){
+        rec.alive=true; rec.statusClass='stat-alive'; rec.score=STAGE_FLOOR.R32;
+        rec.status='Round of 32';
+      } else if(played < 3){
         rec.alive=true; rec.statusClass='stat-alive';
         rec.status = `In Group Stage · ${played}/3 played`;
-      } else if(r32Loaded){            // group done, bracket drawn, not in it → out
-        rec.done=true; rec.statusClass='stat-out'; rec.status='Eliminated · Group Stage';
       } else {
-        rec.alive=true; rec.statusClass='stat-alive'; rec.status='Group complete · awaiting bracket';
+        rec.alive=true; rec.statusClass='stat-alive'; rec.status='Group done · awaiting 3rd-place cutoff';
       }
       out[name]=rec; return;
     }
@@ -738,7 +833,7 @@ function computeNations(){
     const m = myAt[0];
     if(!m || !m.finished){
       rec.alive=true; rec.statusClass='stat-alive';
-      rec.status = m && m.live ? `LIVE · ${sName}` : `In ${sName}`;
+      rec.status = m && m.live ? `LIVE · ${sName}` : sName;
       out[name]=rec; return;
     }
     // finished knockout match the team played
@@ -975,19 +1070,72 @@ function matchCard(m){
     ${meta}</div>`;
 }
 
+// Official 2026 knockout draw, in bracket order (top→bottom of each half).
+// R16/QF/SF winners are derived live from results as they come in.
+const KO_DRAW = {
+  left: [
+    ["Germany","Paraguay"], ["France","Sweden"],
+    ["South Africa","Canada"], ["Netherlands","Morocco"],
+    ["Portugal","Croatia"], ["Spain","Austria"],
+    ["United States","Bosnia-Herzegovina"], ["Belgium","Senegal"]
+  ],
+  right: [
+    ["Brazil","Japan"], ["Ivory Coast","Norway"],
+    ["Mexico","Ecuador"], ["England","DR Congo"],
+    ["Argentina","Cape Verde"], ["Australia","Egypt"],
+    ["Switzerland","Algeria"], ["Colombia","Ghana"]
+  ]
+};
+// Resolve one knockout tie from live results. Winner is null until decided.
+function koMatch(a,b,evs){
+  const out={a,b,winner:null,aScore:null,bScore:null,live:false};
+  if(!a||!b) return out;
+  const e=evs.find(x=>(x.home===a&&x.away===b)||(x.home===b&&x.away===a));
+  if(!e) return out;
+  out.live=!!e.live;
+  if(e.hs!=null && e.as!=null){
+    if(e.home===a){ out.aScore=e.hs; out.bScore=e.as; } else { out.aScore=e.as; out.bScore=e.hs; }
+    if(e.finished){ if(out.aScore>out.bScore) out.winner=a; else if(out.bScore>out.aScore) out.winner=b; }
+  }
+  return out;
+}
+function resolveSide(pairs,evs){
+  let cur=pairs.map(([a,b])=>koMatch(a,b,evs));
+  const rounds=[cur];
+  while(cur.length>1){
+    const nx=[];
+    for(let i=0;i<cur.length;i+=2) nx.push(koMatch(cur[i].winner,cur[i+1].winner,evs));
+    cur=nx; rounds.push(cur);
+  }
+  return rounds; // [R32(8), R16(4), QF(2), SF(1)]
+}
+function kbMatch(m){
+  const row=(n,score,won,lost)=>{
+    if(!n) return `<div class="kb-team kb-tbd">TBD</div>`;
+    const ow=ownerOf(n);
+    return `<div class="kb-team ${won?'kb-win':''} ${lost?'kb-lose':''} ${ow?'kb-owned':''}">`
+      +`${flagImg(n)}<span class="kb-name">${n}</span>`
+      +`${ow?`<span class="own-tag">${ow}</span>`:''}`
+      +`<span class="kb-sc">${score==null?'':score}</span></div>`;
+  };
+  const dec=!!m.winner;
+  return `<div class="kb-m ${m.live?'kb-mlive':''}">`
+    + row(m.a,m.aScore,m.winner===m.a,dec&&m.a&&m.winner!==m.a)
+    + row(m.b,m.bScore,m.winner===m.b,dec&&m.b&&m.winner!==m.b)
+    + `</div>`;
+}
 function renderBracket(){
   const el = document.getElementById('bracketBody');
   const evs = normEvents();
-  const order = [['R32','Round of 32'],['R16','Round of 16'],['QF','Quarterfinals'],['SF','Semifinals'],['THIRD','3rd-Place Match'],['FINAL','Final']];
-  const present = order.filter(([s])=>evs.some(e=>e.stage===s));
-  if(!present.length){
-    el.innerHTML = `<div class="bracket-empty">The knockout bracket fills in here once the group stage wraps (late June). Group standings are live now under the Group Stage tab.</div>`;
-    return;
-  }
-  el.innerHTML = present.map(([s,label])=>{
-    const matches = evs.filter(e=>e.stage===s).sort((a,b)=>(a.strTimestamp||'').localeCompare(b.strTimestamp||''));
-    return `<div class="bround"><h4>${label}</h4><div class="match-grid">${matches.map(matchCard).join('')}</div></div>`;
-  }).join('');
+  const L=resolveSide(KO_DRAW.left,evs), R=resolveSide(KO_DRAW.right,evs);
+  const finalM=koMatch(L[3][0].winner, R[3][0].winner, evs);
+  const col=(matches,extra)=>`<div class="kb-col ${extra||''}">${matches.map(kbMatch).join('')}</div>`;
+  el.innerHTML = `<div class="kb-legend"><span>Round of 32</span><span>R16</span><span>QF</span><span>SF</span><span>Final</span><span>SF</span><span>QF</span><span>R16</span><span>Round of 32</span></div>`
+    + `<div class="kb">`
+    + col(L[0]) + col(L[1]) + col(L[2]) + col(L[3])
+    + `<div class="kb-col kb-final-col">${kbMatch(finalM)}<div class="kb-trophy">🏆</div></div>`
+    + col(R[3]) + col(R[2]) + col(R[1]) + col(R[0])
+    + `</div>`;
 }
 
 let wcSub = 'groups';
@@ -1526,6 +1674,41 @@ function currentRanking(){
   return out;
 }
 
+let prevEliminated = new Set();
+// Live feed of nations knocked out, newest first. Driven by the same engine as
+// the standings, so it updates the instant a group or knockout tie is decided.
+function renderEliminations(){
+  const el = document.getElementById('eliminationFeed');
+  if(!el) return;
+  const evs = normEvents();
+  const items = [];
+  COUNTRIES.forEach(cc=>{
+    const name = cc.n;
+    const rec = teamRec(name);
+    if(!rec || !rec.inWC || rec.statusClass!=='stat-out') return;
+    const mine = evs.filter(e=>(e.home===name||e.away===name) && e.finished)
+      .sort((a,b)=>(b.strTimestamp||'').localeCompare(a.strTimestamp||''));
+    items.push({name, rec, owner: ownerOf(name), ts: mine[0]?mine[0].strTimestamp:'', last: mine[0]});
+  });
+  items.sort((a,b)=>(b.ts||'').localeCompare(a.ts||''));
+  const nowSet = new Set(items.map(i=>i.name));
+  if(!items.length){
+    el.innerHTML = `<h3 class="elim-title">🪦 Eliminated <span class="elim-count">0</span></h3>`
+      + `<div class="elim-empty">No teams out yet — nations appear here the moment their group or knockout tie is decided.</div>`;
+    prevEliminated = nowSet; return;
+  }
+  el.innerHTML = `<h3 class="elim-title">🪦 Eliminated <span class="elim-count">${items.length}</span></h3><div class="elim-list">`
+    + items.map(it=>{
+      const isNew = prevEliminated.size>0 && !prevEliminated.has(it.name);
+      return `<div class="elim-item ${it.owner?'elim-owned':''} ${isNew?'elim-new':''}">
+        <span class="elim-flag">${flagImg(it.name)}</span>
+        <span class="elim-name">${it.name}${it.owner?`<span class="own-tag">${it.owner}</span>`:''}</span>
+        <span class="elim-status stat-pill stat-out">${it.rec.status}</span>
+      </div>`;
+    }).join('') + `</div>`;
+  prevEliminated = nowSet;
+}
+
 function renderTracker(){
   const body = document.getElementById('trackerBody');
   if(!body) return;
@@ -1575,6 +1758,7 @@ function renderTracker(){
     html += pending.map(row=>trackerRow(row.m,'—','—','—','')).join('');
   }
   body.innerHTML = html;
+  renderEliminations();
 }
 
 function trackerRow(m, rankTxt, avgTxt, pickTxt, cls){
