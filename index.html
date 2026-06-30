@@ -369,6 +369,7 @@ tr.rank-last{background:rgba(192,57,43,.08)}
 .kb-team.kb-tbd{color:#5a5a5a;font-style:italic;justify-content:center}
 .kb-team .own-tag{font-size:9px;color:var(--gold-light)}
 .kb-sc{font-family:'Bebas Neue',sans-serif;color:var(--gold);min-width:12px;text-align:right}
+.kb-pen{font-family:'Barlow Condensed',sans-serif;font-size:9px;color:var(--muted);margin-left:2px}
 .kb-trophy{font-size:26px;text-align:center;margin-top:8px}
 
 /* ---------- My Teams ---------- */
@@ -743,7 +744,8 @@ function normEvents(){
   return wcRaw.map(e=>{
     const home = apiToCountry(e.strHomeTeam), away = apiToCountry(e.strAwayTeam);
     const hs = parseScore(e.intHomeScore), as = parseScore(e.intAwayScore);
-    const ev = {...e, home, away, hs, as, stage: wcStageMap[String(e.intRound)]||null};
+    const hse = parseScore(e.intHomeScoreExtra), ase = parseScore(e.intAwayScoreExtra);
+    const ev = {...e, home, away, hs, as, hse, ase, stage: wcStageMap[String(e.intRound)]||null};
     ev.finished = isFinished(ev);
     ev.live = LIVE_STATUS.has(e.strStatus);
     return ev;
@@ -836,12 +838,18 @@ function computeNations(){
       rec.status = m && m.live ? `LIVE · ${sName}` : sName;
       out[name]=rec; return;
     }
-    // finished knockout match the team played
+    // finished knockout match the team played (penalties break a draw)
     const myGoals = m.home===name ? m.hs : m.as;
     const oppGoals = m.home===name ? m.as : m.hs;
-    const decisive = myGoals!=null && oppGoals!=null && myGoals!==oppGoals;
-    const won = decisive && myGoals>oppGoals;
-    const lost = decisive && myGoals<oppGoals;
+    const myPen = m.home===name ? m.hse : m.ase;
+    const oppPen = m.home===name ? m.ase : m.hse;
+    let won=false, lost=false;
+    if(myGoals!=null && oppGoals!=null){
+      if(myGoals>oppGoals) won=true;
+      else if(myGoals<oppGoals) lost=true;
+      else if(myPen!=null && oppPen!=null){ won = myPen>oppPen; lost = myPen<oppPen; }
+    }
+    const decisive = won || lost;
 
     if(stage==='FINAL'){
       if(won){ rec.score=1; rec.done=true; rec.statusClass='stat-champ'; rec.status='🏆 Champion'; }
@@ -886,11 +894,55 @@ async function sdbFetch(path){
   throw lastErr || new Error('all sources failed');
 }
 
+// searchevents returns {event:[...]} (singular). Used to find knockout games by
+// name — the bulk round feed truncates, but a name search always returns the
+// exact game, with penalty scores. Returns [] on any failure (best-effort).
+async function sdbSearch(path){
+  const url = `https://www.thesportsdb.com/api/v1/json/${SPORTSDB.key}/${path}`;
+  const orderIdx = [wcEndpointIdx, ...WC_ENDPOINTS.map((_,i)=>i).filter(i=>i!==wcEndpointIdx)];
+  for(const i of orderIdx){
+    try{
+      const res = await fetch(WC_ENDPOINTS[i](url), {cache:'no-store'});
+      if(!res.ok) throw 0;
+      const json = await res.json();
+      if(json && (Array.isArray(json.event) || json.event===null)){ wcEndpointIdx = i; return json.event || []; }
+      throw 0;
+    }catch(e){}
+  }
+  return [];
+}
+// TheSportsDB names a few teams differently from our draft list.
+const SDB_NAME = { 'United States':'USA', 'Turkiye':'Turkey' };
+function sdbSearchName(n){ return (SDB_NAME[n]||n).replace(/ /g,'_'); }
+// Find every knockout matchup that should have been played by name search and
+// merge the real games (with scores/penalties) into the cache. Auto-extends to
+// each round as winners fill in.
+async function discoverKnockouts(){
+  const evs = normEvents();
+  const L = resolveSide(KO_DRAW.left, evs), R = resolveSide(KO_DRAW.right, evs);
+  const finalM = koMatch(L[3][0].winner, R[3][0].winner, evs);
+  const matchups = [...L.flat(), ...R.flat(), finalM].filter(m=>m.a && m.b);
+  const todo = matchups.filter(m=>{
+    const cached = Object.values(wcEventCache).find(e=>{
+      const h=apiToCountry(e.strHomeTeam), aw=apiToCountry(e.strAwayTeam);
+      return (h===m.a&&aw===m.b)||(h===m.b&&aw===m.a);
+    });
+    return !(cached && eventHasResult(cached));
+  });
+  for(let i=0;i<todo.length;i+=WC_LOOKUP_CHUNK){
+    const slice = todo.slice(i, i+WC_LOOKUP_CHUNK);
+    const got = await Promise.allSettled(slice.map(m=>
+      sdbSearch(`searchevents.php?e=${sdbSearchName(m.a)}_vs_${sdbSearchName(m.b)}&s=${SPORTSDB.season}`)));
+    got.forEach(s=>{ if(s.status==='fulfilled') s.value.forEach(mergeOne); });
+  }
+}
+
 // Keep only the fields the engine needs, to keep the localStorage cache small.
 function trimEvent(e){
   return { idEvent:e.idEvent, idLeague:e.idLeague, strSeason:e.strSeason,
     strHomeTeam:e.strHomeTeam, strAwayTeam:e.strAwayTeam,
     intHomeScore:e.intHomeScore, intAwayScore:e.intAwayScore, intRound:e.intRound,
+    intHomeScoreExtra:e.intHomeScoreExtra, intAwayScoreExtra:e.intAwayScoreExtra,
     strTimestamp:e.strTimestamp, dateEvent:e.dateEvent, strTime:e.strTime,
     strStatus:e.strStatus, strVenue:e.strVenue, strGroup:e.strGroup };
 }
@@ -919,6 +971,10 @@ function mergeOne(e){
 function kickoffMs(e){ if(!e || !e.strTimestamp) return 0; const d = new Date(e.strTimestamp.replace(' ','T')+'Z'); return isNaN(d) ? 0 : d.getTime(); }
 
 const WC_LOOKUP_CHUNK = 6;            // per-event lookups per concurrent batch (proxy-friendly)
+// Knockout match days (R32 → Final). eventsround truncates a big round to ~5
+// games, so we also pull each of these days individually — a single day is
+// small enough to return complete, catching every knockout fixture.
+const WC_KO_DATES = ['2026-06-28','2026-06-29','2026-06-30','2026-07-01','2026-07-02','2026-07-03','2026-07-04','2026-07-05','2026-07-06','2026-07-07','2026-07-09','2026-07-10','2026-07-11','2026-07-14','2026-07-15','2026-07-18','2026-07-19'];
 let wcLastScheduleAt = 0;
 let wcBackfill = {active:false, done:0, total:0};
 
@@ -944,6 +1000,11 @@ async function fetchWC(manual){
     if(doSchedule){
       [...WC_GROUP_ROUNDS, ...WC_KNOWN_KO, ...wcDiscoveredKO].forEach(r=>
         tasks.push(sdbFetch(`eventsround.php?id=${SPORTSDB.league}&r=${r}&s=${SPORTSDB.season}`)));
+      // Per-day knockout discovery (un-truncated) — catches every knockout game,
+      // including afternoon/evening fixtures the bulk round feed drops. Only days
+      // up to ~2 ahead, to avoid wasting calls on far-future rounds.
+      WC_KO_DATES.filter(d=> Date.parse(d+'T23:59:59Z') <= now + 2*864e5)
+        .forEach(d=> tasks.push(sdbFetch(`eventsday.php?d=${d}&l=${SPORTSDB.league}`)));
     }
     tasks.push(sdbFetch(`eventsnextleague.php?id=${SPORTSDB.league}`));
     const settled = await Promise.allSettled(tasks);
@@ -951,12 +1012,24 @@ async function fetchWC(manual){
     good.forEach(s=>s.value.forEach(mergeOne));
     const known = new Set([...WC_GROUP_ROUNDS, ...WC_KNOWN_KO, ...wcDiscoveredKO]);
     Object.values(wcEventCache).forEach(e=>{ const r=String(e.intRound); if(r && r!=='null' && r!=='undefined' && !known.has(r)){ wcDiscoveredKO.push(r); known.add(r); } });
+    // Knockout games are looked up by name (the bulk round feed truncates).
+    if(doSchedule){ try{ await discoverKnockouts(); }catch(e){} }
     // 2) Results — pull EVERY game that has kicked off and isn't final yet, so the
     //    whole tournament is current and the standings come from complete data.
     //    The free tier's bulk feeds are stale, so each event is looked up directly.
     //    Already-final games are cached and skipped, so this is heavy only once.
+    const GROUP_ROUNDS = new Set(['1','2','3']);
     const due = Object.values(wcEventCache)
-      .filter(e=>{ const t = kickoffMs(e); return t && t < now && !FINISHED.has(e.strStatus); })
+      .filter(e=>{
+        const t = kickoffMs(e);
+        if(!t || t >= now || FINISHED.has(e.strStatus)) return false;
+        // Group stage is settled — never re-pull a group game that already has a
+        // cached result. The free key is rate-limited, so this reserves the whole
+        // lookup budget for live knockout games instead of wasting it on games
+        // the feed keeps flipping back to "not started".
+        if(GROUP_ROUNDS.has(String(e.intRound)) && eventHasResult(e)) return false;
+        return true;
+      })
       .sort((a,b)=>(b.strTimestamp||'').localeCompare(a.strTimestamp||''));
     let resultsOk = 0;
     wcBackfill = {active: due.length>0, done:0, total:due.length};
@@ -1088,14 +1161,21 @@ const KO_DRAW = {
 };
 // Resolve one knockout tie from live results. Winner is null until decided.
 function koMatch(a,b,evs){
-  const out={a,b,winner:null,aScore:null,bScore:null,live:false};
+  const out={a,b,winner:null,aScore:null,bScore:null,aPen:null,bPen:null,live:false};
   if(!a||!b) return out;
   const e=evs.find(x=>(x.home===a&&x.away===b)||(x.home===b&&x.away===a));
   if(!e) return out;
   out.live=!!e.live;
+  const aIsHome = e.home===a;
   if(e.hs!=null && e.as!=null){
-    if(e.home===a){ out.aScore=e.hs; out.bScore=e.as; } else { out.aScore=e.as; out.bScore=e.hs; }
-    if(e.finished){ if(out.aScore>out.bScore) out.winner=a; else if(out.bScore>out.aScore) out.winner=b; }
+    out.aScore = aIsHome ? e.hs : e.as;
+    out.bScore = aIsHome ? e.as : e.hs;
+    if(e.hse!=null && e.ase!=null){ out.aPen = aIsHome ? e.hse : e.ase; out.bPen = aIsHome ? e.ase : e.hse; }
+    if(e.finished){
+      if(out.aScore>out.bScore) out.winner=a;
+      else if(out.bScore>out.aScore) out.winner=b;
+      else if(out.aPen!=null && out.bPen!=null){ if(out.aPen>out.bPen) out.winner=a; else if(out.bPen>out.aPen) out.winner=b; }
+    }
   }
   return out;
 }
@@ -1110,18 +1190,18 @@ function resolveSide(pairs,evs){
   return rounds; // [R32(8), R16(4), QF(2), SF(1)]
 }
 function kbMatch(m){
-  const row=(n,score,won,lost)=>{
+  const row=(n,score,pen,won,lost)=>{
     if(!n) return `<div class="kb-team kb-tbd">TBD</div>`;
     const ow=ownerOf(n);
     return `<div class="kb-team ${won?'kb-win':''} ${lost?'kb-lose':''} ${ow?'kb-owned':''}">`
       +`${flagImg(n)}<span class="kb-name">${n}</span>`
       +`${ow?`<span class="own-tag">${ow}</span>`:''}`
-      +`<span class="kb-sc">${score==null?'':score}</span></div>`;
+      +`<span class="kb-sc">${score==null?'':score}${pen!=null?`<span class="kb-pen">(${pen})</span>`:''}</span></div>`;
   };
   const dec=!!m.winner;
   return `<div class="kb-m ${m.live?'kb-mlive':''}">`
-    + row(m.a,m.aScore,m.winner===m.a,dec&&m.a&&m.winner!==m.a)
-    + row(m.b,m.bScore,m.winner===m.b,dec&&m.b&&m.winner!==m.b)
+    + row(m.a,m.aScore,m.aPen,m.winner===m.a,dec&&m.a&&m.winner!==m.a)
+    + row(m.b,m.bScore,m.bPen,m.winner===m.b,dec&&m.b&&m.winner!==m.b)
     + `</div>`;
 }
 function renderBracket(){
